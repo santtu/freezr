@@ -39,6 +39,7 @@ INSTALLED_APPS = (
     'rest_framework',
     'djcelery',
     'freezr',
+    'django_nose',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -88,3 +89,6 @@ STATIC_URL = '/static/'
 #CELERY_RESULT_BACKEND='djcelery.backends.database:DatabaseBackend'
 #CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 BROKER_URL = 'amqp://guest@localhost//'
+
+# nose
+TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
