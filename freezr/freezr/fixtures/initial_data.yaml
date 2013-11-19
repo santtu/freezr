@@ -4,17 +4,8 @@
 - fields: {access_key: '2341234123412341234', active: true, domain: 1, name: 'Test account', secret_key: '43523452345345435'}
   model: freezr.account
   pk: 1
-- fields: {key: project, project: 1, value: test}
-  model: freezr.instancetagfilter
-  pk: 1
-- fields: {key: type, project: 1, value: staging}
-  model: freezr.instancetagfilter
-  pk: 2
-- fields: {key: class, project: 1, value: ci}
-  model: freezr.savedtagfilter
-  pk: 1
 - fields: {account: 1, description: '', name: 'Test project', region: eu-west-1,
-    state: init, vpc_id: ''}
+    state: init, vpc_id: '', pick_filter: 'tag[project] = test and tag[type] = staging', save_filter: 'tag[class] = ci'}
   model: freezr.project
   pk: 1
 - fields:

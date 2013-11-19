@@ -1,35 +1,17 @@
 from django.conf.urls import patterns, include, url
+from freezr.views import *
+from rest_framework import viewsets, routers
 from django.contrib import admin
-from freezr.models import *
-from freezr import views
 
-admin.autodiscover()
-
-admin.site.register(Domain)
-admin.site.register(Account)
-#admin.site.register(Project)
-
-class InstanceTagFilterAdminInline(admin.TabularInline):
-    model = InstanceTagFilter
-
-class SavedTagFilterAdminInline(admin.TabularInline):
-    model = SavedTagFilter
-
-class ProjectAdmin(admin.ModelAdmin):
-    inlines = (InstanceTagFilterAdminInline, SavedTagFilterAdminInline)
-
-admin.site.register(Project, ProjectAdmin)
+router = routers.DefaultRouter()
+router.register(r'domain', DomainViewSet)
+router.register(r'account', AccountViewSet)
+router.register(r'project', ProjectViewSet)
+#router.register(r'tag-filter', TagFilterViewSet)
 
 urlpatterns = patterns(
     '',
-    ## Examples:
-    # url(r'^$', 'freezr.views.home', name='home'),
-    # url(r'^blog/', include('blog.urls')),
 
     url(r'^admin/', include(admin.site.urls)),
-
-    url(r'^api/domain/$', views.DomainList.as_view()),
-    url(r'^api/domain/(?P<pk>[0-9]+)$', views.DomainDetail.as_view()),
-    url(r'^api/account/$', views.AccountList.as_view()),
-    url(r'^api/account/(?P<pk>[0-9]+)$', views.AccountDetail.as_view()),
+    url(r'^api/', include(router.urls))
     )
