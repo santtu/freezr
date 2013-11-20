@@ -1,7 +1,12 @@
+from __future__ import absolute_import
 from django.db import models
 from django.core.validators import validate_slug
 from django.core.exceptions import ValidationError
+from django.db import transaction, IntegrityError
 import re
+import freezr.util as util
+import freezr.aws as aws
+import freezr.filter as filter
 
 VALID_INSTANCE_RE = re.compile(r'^i-[0-9a-f]+$')
 
@@ -14,10 +19,16 @@ def firsts(elts):
 
 # Should get this dynamically from AWS instead
 EC2_REGIONS_CHOICES = (
-    ('eu-west-1', 'Ireland'),
     ('us-east-1', 'US East'),
-    ('ap-northeast-1', 'Japan')
+    ('us-west-1', 'US Oregon'),
+    ('us-west-2', 'US Northern California'),
+    ('eu-west-1', 'Ireland'),
+    ('ap-southeast-1', 'Singapore'),
+    ('ap-southeast-2', 'Sydney'),
+    ('ap-northeast-1', 'Japan'),
+    ('sa-east-1', 'Sao Paulo')
     )
+
 
 EC2_REGIONS = firsts(EC2_REGIONS_CHOICES)
 
@@ -32,8 +43,8 @@ PROJECT_STATES_CHOICES = (
     ('init', 'Initializing'),
     ('running', 'Running'),
     ('frozen', 'Frozen'),
-    ('freeze', 'Freezing'),
-    ('thaw', 'Thawing'),
+    ('freezing', 'Freezing'),
+    ('thawing', 'Thawing'),
     ('error', 'In error')
 )
 
@@ -49,12 +60,32 @@ TAG_FILTERS = firsts(TAG_FILTERS_CHOICES)
 TAG_KEY_LENGTH_MAX = 127
 TAG_VALUE_LENGTH_MAX = 255
 
-# "Domain" is just a category for being one abstract "customer",
-# holding many accounts. In the default mode with no authentication,
-# there is only one domain, the "public" domain which doesn't have
-# users defined (this is created in initial fixtures).
+INSTANCE_STATE_CHOICES = (
+    ('pending', 'Pending'),
+    ('running', 'Running'),
+    ('shutting-down', 'Shutting down'),
+    ('terminated', 'Terminated'),
+    ('stopping', 'Stopping'),
+    ('stopped', 'Stopped')
+    )
 
-class Domain(models.Model):
+INSTANCE_STATES = firsts(INSTANCE_STATE_CHOICES)
+
+class BaseModel(models.Model, util.Logger):
+    """Just a common base model doing some mixins and stuff."""
+    def __init__(self, *args, **kwargs):
+        super(BaseModel, self).__init__(*args, **kwargs)
+
+    class Meta:
+        abstract = True
+
+
+class Domain(BaseModel):
+    """"Domain" is just a category for being one abstract "customer",
+    holding many accounts. In the default mode with no authentication,
+    there is only one domain, the "public" domain which doesn't have
+    users defined (this is created in initial fixtures)."""
+
     # Name of the domain (short description)
     name = models.CharField(max_length=30)
 
@@ -70,7 +101,12 @@ class Domain(models.Model):
     def __unicode__(self):
         return self.name
 
-class Account(models.Model):
+class Account(BaseModel, aws.Account):
+    # TODO: We really would want to add the AWS account ID here as
+    # unique key, but getting it via API is stricly not possible,
+    # although via a workaround it is. See here:
+    # http://stackoverflow.com/questions/10197784/how-can-i-deduce-the-aws-account-id-from-available-basicawscredentials
+
     # Accounts always under a domain
     domain = models.ForeignKey('Domain', related_name='accounts')
 
@@ -90,12 +126,42 @@ class Account(models.Model):
     def __unicode__(self):
         return unicode(self.domain) + "/" + self.access_key
 
-    def refresh(self, regions=EC2_REGIONS):
+    def refresh(self, regions=None):
         """Refresh this account contents, updating list of tags,
-        instances and EIPs in this account in the given regions."""
+        instances and EIPs in this account in the given `regions`. If
+        `regions` is not specified, will go through `self.regions`."""
+
+        if regions is None:
+            regions = self.regions
+
         print("{0}.refresh: regions={1!r}".format(self, regions))
 
-class Tag(models.Model):
+        for region in regions:
+            try:
+                with transaction.atomic():
+                    self.refresh_region(region)
+            except IntegrityError:
+                self.log.exception("Error while updating account %s in region %s",
+                                   self, region)
+
+    @property
+    def regions(self):
+        """Returns list of regions that should be checked for this
+        account's activity. This list is constructed from the projects
+        associated with this account. The result is useful for example
+        in restricting queries only to regions that are relevant to
+        this account."""
+        return list(set([project.region for project in self.projects.all()]))
+
+    @property
+    def instances(self):
+        return self.instances.filter(account=self)
+
+    def new_instance(self, **kwargs):
+        """Create a new instance under this account."""
+        return Instance(account=self, **kwargs)
+
+class Tag(BaseModel):
     # Tag key
     key = models.CharField(max_length=TAG_KEY_LENGTH_MAX)
 
@@ -103,15 +169,14 @@ class Tag(models.Model):
     class Meta:
         abstract = True
 
-# We don't represent account tags separately. Find
-# account.instances*.tags instead.
+    def __hash__(self):
+        return self.key.__hash__()
 
-# class AccountTag(Tag):
-#     # Tags to an account ..
-#     account = models.ForeignKey('Account')
+    def __cmp__(self, other):
+        return self.key.__cmp__(other.key)
 
 class InstanceTag(Tag):
-    # and to instances ..
+    # To instance ..
     instance = models.ForeignKey('Instance', related_name='tags')
 
     # And their tags have a value (which may be empty)
@@ -120,33 +185,17 @@ class InstanceTag(Tag):
     def __unicode__(self):
         return self.key + "=" + self.value
 
-# class TagFilter(Tag):
-#     # Project this filter applies to
-#     project = models.ForeignKey('Project', related_name='filters')
+class Instance(BaseModel):
+    # Which account this instances has been retrieved from.
+    account = models.ForeignKey('Account', related_name='instances')
 
-#     # Selector value. Currently just a simple equals comparison.
-#     value = models.CharField(max_length=TAG_VALUE_LENGTH_MAX, blank=True, null=True)
-
-#     # Type of filter, either pick or save
-#     type = models.CharField(max_length=10, choices=TAG_FILTERS_CHOICES)
-
-#     def __unicode__(self):
-#         return self.key + "~" + self.value
-
-#     # class Meta:
-#     #     abstract = True
-
-# class InstanceTagFilter(TagFilter):
-#     project = models.ForeignKey('Project', related_name='instance_filters')
-
-# class SaveTagFilter(TagFilter):
-#     project = models.ForeignKey('Project', related_name='save_filters')
-
-class Instance(models.Model):
     # Instance id. Note we don't make this primary_key (use the
     # integer id field instead) since instance ids are *not*
     # guaranteed to be unique over multiple regions.
     instance_id = models.CharField(max_length=30, validators=[validate_instance_id])
+
+    # Instance type
+    type = models.CharField(max_length=30)
 
     # Region this is running in .. in our model an account contains
     # instances from all (visited) regions. Filtered based on project
@@ -159,10 +208,42 @@ class Instance(models.Model):
     # Type of backing store of the instance
     store = models.CharField(max_length=10, choices=BACKING_STORES_CHOICES)
 
+    # Current instance state
+    state = models.CharField(max_length=30, choices=INSTANCE_STATE_CHOICES)
+
     def __unicode__(self):
         return self.instance_id
 
-class ElasticIp(models.Model):
+    def new_tag(self, **kwargs):
+        """Create a new tag under this instance."""
+        return InstanceTag(instance=self, **kwargs)
+
+    @property
+    def environment(self):
+        """Return an environment suitable for evaluating with
+        freezr.filter.Filter.evaluate."""
+        return {
+            'region': self.region,
+            'instance': self.instance_id,
+            'type': self.type,
+            'storage': self.store,
+            'tags': {tag.key: tag.value for tag in self.tags.all()},
+            }
+
+    def __hash__(self):
+        return self.instance_id.__hash__()
+
+    def __cmp__(self, other):
+        return self.instance_id.__cmp__(other.instance_id)
+
+    class Meta:
+        # Actually region + instance_id is unique, but we do not want
+        # to leak information between domains. Conflicts within
+        # domains are ok.
+        unique_together = (('account', 'instance_id', 'region'))
+
+
+class ElasticIp(BaseModel):
     # Which project this is from, note if multiple projects use the
     # same accont *without* vpcs, then the same EIP will be listed
     # multiple times (once for each project).
@@ -175,7 +256,7 @@ class ElasticIp(models.Model):
     address = models.CharField(max_length=20)
 
 # Projects
-class Project(models.Model):
+class Project(BaseModel):
     # State of this project
     state = models.CharField(max_length=30, choices=PROJECT_STATES_CHOICES, default='init')
 
@@ -206,3 +287,22 @@ class Project(models.Model):
 
     def __unicode__(self):
         return unicode(self.account) + "/" + self.name
+
+    def filter_instances(self, filter_text):
+        f = filter.Filter(filter_text)
+        picked = set()
+
+        for instance in self.account.instances.all():
+            self.log.debug("filter: looking at %s", instance)
+            if f.evaluate(instance.environment):
+                picked.add(instance)
+
+        return list(picked)
+
+    @property
+    def picked_instances(self):
+        return self.filter_instances(self.pick_filter)
+
+    @property
+    def saved_instances(self):
+        return self.filter_instances(self.save_filter)

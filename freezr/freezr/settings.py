@@ -92,3 +92,27 @@ BROKER_URL = 'amqp://guest@localhost//'
 
 # nose
 TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
+
+# logging, add to existing
+LOGGING = {
+    'version': 1,
+    'formatters': {
+        'simple': {
+            'format': '%(levelname)s %(message)s'
+            }
+        },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+            }
+        },
+    'loggers': {
+        'freezr': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+            }
+        }
+}

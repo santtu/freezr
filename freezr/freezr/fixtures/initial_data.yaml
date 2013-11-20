@@ -1,13 +1,25 @@
 - fields: {active: true, description: '', domain: 'test.local', name: 'Test domain'}
   model: freezr.domain
   pk: 1
-- fields: {access_key: '2341234123412341234', active: true, domain: 1, name: 'Test account', secret_key: '43523452345345435'}
+- fields: {access_key: 'AKIAJIHTR7UHALP3R3DQ', active: true, domain: 1, name: 'Test account', secret_key: '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'}
   model: freezr.account
   pk: 1
-- fields: {account: 1, description: '', name: 'Test project', region: eu-west-1,
+- fields: {account: 1, description: '', name: 'Test project (us-east-1)', region: us-east-1,
     state: init, vpc_id: '', pick_filter: 'tag[project] = test and tag[type] = staging', save_filter: 'tag[class] = ci'}
   model: freezr.project
   pk: 1
+- fields: {account: 1, description: '', name: 'Test project (eu-west-1)', region: eu-west-1,
+    state: init, vpc_id: '', pick_filter: 'tag[project] = test and tag[type] = staging', save_filter: 'tag[class] = ci'}
+  model: freezr.project
+  pk: 2
+- fields: {account: 1, description: '', name: 'Test project (us-west-1)', region: us-west-1,
+    state: init, vpc_id: '', pick_filter: 'tag[project] = test and tag[type] = staging', save_filter: 'tag[class] = ci'}
+  model: freezr.project
+  pk: 3
+- fields: {account: 1, description: '', name: 'Test project (us-west-2)', region: us-west-2,
+    state: init, vpc_id: '', pick_filter: 'tag[project] = test and tag[type] = staging', save_filter: 'tag[class] = ci'}
+  model: freezr.project
+  pk: 4
 - fields:
     email: admin@localhost
     first_name: 'Admin'

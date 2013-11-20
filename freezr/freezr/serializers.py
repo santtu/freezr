@@ -1,5 +1,8 @@
 from rest_framework import serializers
 from freezr.models import *
+import logging
+
+log = logging.getLogger('freezr.serializers')
 
 class DomainSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
@@ -7,28 +10,32 @@ class DomainSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('id', 'name', 'description', 'active', 'accounts')
 
 class AccountSerializer(serializers.HyperlinkedModelSerializer):
+    regions = serializers.Field()
+
     class Meta:
         model = Account
-        fields = ('id', 'domain', 'name', 'access_key', 'active', 'projects')
+        fields = ('id', 'domain', 'name', 'access_key',
+                  'active', 'projects', 'regions',
+                  'instances')
 
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
+    picked_instances = serializers.Field()
+    saved_instances = serializers.Field()
+
     class Meta:
         model = Project
         fields = ('id', 'state', 'account', 'region', 'vpc_id',
                   'name', 'description',
-                  'elastic_ips', 'pick_filter', 'save_filter')
+                  'elastic_ips', 'pick_filter', 'save_filter',
+                  'picked_instances', 'saved_instances')
 
-# class TagFilterSerializer(serializers.HyperlinkedModelSerializer):
-#     class Meta:
-#         model = TagFilter
-#         fields = ('key', 'value', 'type', 'project')
+class InstanceSerializer(serializers.HyperlinkedModelSerializer):
+    tags = serializers.Field()
 
-# class InstanceTagFilterSerializer(serializers.HyperlinkedModelSerializer):
-#     class Meta:
-#         model = InstanceTagFilter
-#         fields = ('key', 'value', 'project')
+    class Meta:
+        model = Instance
+        fields = ('account', 'instance_id', 'region', 'vpc_id',
+                  'store', 'state', 'tags')
 
-# class SaveTagFilterSerializer(serializers.HyperlinkedModelSerializer):
-#     class Meta:
-#         model = SaveTagFilter
-#         fields = ('key', 'value', 'project')
+    def transform_tags(self, obj, value):
+        return {tag.key: tag.value for tag in obj.tags.all()}
