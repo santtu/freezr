@@ -1,32 +1,37 @@
 from __future__ import absolute_import
 import boto.ec2
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
+import freezr.util as util
 
 # This file contains mix-ins for model.* classes. We do this here
 # separately to avoid putting a lot of AWS-specific code into the
 # model.py file. It also allows us to keep a better separation of
 # concerns.
 
-class BaseAWS(object):
+class BaseAWS(util.Logger):
     """Common base class for common tasks, like getting EC2 connection
     from an account.
 
     This class, and its descendants assume that you have
     freezr.util.Logger mixed in to the instance."""
-    def connect_ec2(self, account, region):
+    def connect_ec2(self, region):
         conn = boto.ec2.connect_to_region(
             region,
-            aws_access_key_id=account.access_key,
-            aws_secret_access_key=account.secret_key)
+            aws_access_key_id=self.account.access_key,
+            aws_secret_access_key=self.account.secret_key)
 
         self.log.debug("Connected to region %s on account %s: %r",
-                       region, account, conn)
+                       region, self.account, conn)
 
         return conn
 
+    def __init__(self, account=None):
+        super(BaseAWS, self).__init__()
+        self.account = account
+
 class Account(BaseAWS):
-    def refresh_region(self, region):
-        conn = self.connect_ec2(self, region)
+    def refresh_region(self, account, region):
+        conn = self.connect_ec2(region)
 
         ## Basically just iterate through all instances in this
         ## account, compare that set to existing data records, update
@@ -51,17 +56,17 @@ class Account(BaseAWS):
                 continue
 
             try:
-                record = self.instances.get(instance_id=instance.id,
-                                            region=region)
+                record = account.instances.get(instance_id=instance.id,
+                                                region=region)
             except ObjectDoesNotExist:
-                record = self.new_instance(instance_id=instance.id,
-                                           region=region)
+                record = account.new_instance(instance_id=instance.id,
+                                              region=region)
                 added_instances.add(record)
             except MultipleObjectsReturned:
                 # Ahem, this shouldn't be happening. We have bad
                 # records, make them go away.
-                self.instances.filter(instance_id=instance.id,
-                                      region=region).delete()
+                account.instances.filter(instance_id=instance.id,
+                                          region=region).delete()
                 continue
 
             # Although none of these should change during lifetime of
@@ -106,7 +111,7 @@ class Account(BaseAWS):
         # Now go through previously recorded instances for this
         # account and see whether they are actually present in seen_instances
         # ones.
-        recorded_instances = set(self.instances.filter(region=region).all())
+        recorded_instances = set(account.instances.filter(region=region).all())
         disappeared_instances = recorded_instances - seen_instances
         self.log.debug("alive=%r recorded=%r added=%r disappeared=%r",
                        seen_instances, recorded_instances,

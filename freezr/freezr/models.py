@@ -72,14 +72,13 @@ INSTANCE_STATE_CHOICES = (
 
 INSTANCE_STATES = firsts(INSTANCE_STATE_CHOICES)
 
-class BaseModel(models.Model, util.Logger):
+class BaseModel(util.Logger, models.Model):
     """Just a common base model doing some mixins and stuff."""
     def __init__(self, *args, **kwargs):
         super(BaseModel, self).__init__(*args, **kwargs)
 
     class Meta:
         abstract = True
-
 
 class Domain(BaseModel):
     """"Domain" is just a category for being one abstract "customer",
@@ -99,9 +98,10 @@ class Domain(BaseModel):
     # Active?
     active = models.BooleanField(default=True)
 
-    # Link to user that is the owner of this domain.
+    # Link to user that is the owner of this domain. Can be empty.
     owner = models.ForeignKey(auth.models.User,
-                              related_name="owned_domains")
+                              related_name="owned_domains",
+                              blank=True, null=True)
 
     def __unicode__(self):
         return self.name
@@ -111,7 +111,7 @@ class Domain(BaseModel):
             ('domain_admin', 'Is domain admin'),
             )
 
-class Account(BaseModel, aws.Account):
+class Account(BaseModel):
     # TODO: We really would want to add the AWS account ID here as
     # unique key, but getting it via API is stricly not possible,
     # although via a workaround it is. See here:
@@ -136,6 +136,13 @@ class Account(BaseModel, aws.Account):
     def __unicode__(self):
         return unicode(self.domain) + "/" + self.access_key
 
+    # aws is argument here with a default so we can inject mock during
+    # testing
+    def __init__(self, *args, **kwargs):
+        mate = kwargs.pop('mate', None)
+        super(Account, self).__init__(*args, **kwargs)
+        self.mate = mate or aws.Account(self)
+
     def refresh(self, regions=None):
         """Refresh this account contents, updating list of tags,
         instances and EIPs in this account in the given `regions`. If
@@ -149,7 +156,7 @@ class Account(BaseModel, aws.Account):
         for region in regions:
             try:
                 with transaction.atomic():
-                    self.refresh_region(region)
+                    self.mate.refresh_region(self, region)
             except IntegrityError:
                 self.log.exception("Error while updating account %s in region %s",
                                    self, region)
@@ -171,6 +178,10 @@ class Account(BaseModel, aws.Account):
     def new_instance(self, **kwargs):
         """Create a new instance under this account."""
         return Instance(account=self, **kwargs)
+
+    def new_project(self, **kwargs):
+        """Create a new project under this account."""
+        return Project(account=self, **kwargs)
 
 class Tag(BaseModel):
     # Tag key
@@ -300,6 +311,18 @@ class Project(BaseModel):
         return unicode(self.account) + "/" + self.name
 
     def filter_instances(self, filter_text):
+        """Return a list of instances that match the `filter_text`
+        filter pattern under the account of this project.
+
+        Note that empty pattern will always return an empty list --
+        this is to prevent empty fields from accidentally removing a
+        lot of instances.. if you want to really match *all* instances
+        under an account you'd have to write an always-true statement
+        like "region = region"."""
+
+        if not filter_text:
+            return []
+
         f = filter.Filter(filter_text)
         picked = set()
 
@@ -320,6 +343,8 @@ class Project(BaseModel):
 
     @property
     def regions(self):
+        if not self._regions:
+            return []
         return self._regions.split(",")
 
     @regions.setter
