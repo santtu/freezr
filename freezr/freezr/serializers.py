@@ -18,13 +18,24 @@ class AccountSerializer(serializers.HyperlinkedModelSerializer):
                   'active', 'projects', 'regions',
                   'instances')
 
+class CommaStringListField(util.Logger, serializers.WritableField):
+    def to_native(self, obj):
+        self.log.debug("to_native: self=%r obj=%r", self, obj)
+        return list(set(obj.split(",")))
+
+    def from_native(self, data):
+        self.log.debug("from_native: self=%r data=%r", self, data)
+        return ",".join(data)
+
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     picked_instances = serializers.Field()
     saved_instances = serializers.Field()
+    regions = CommaStringListField(source='_regions')
 
     class Meta:
         model = Project
-        fields = ('id', 'state', 'account', 'region', 'vpc_id',
+        fields = ('id', 'state', 'account',
+                  'regions',
                   'name', 'description',
                   'elastic_ips', 'pick_filter', 'save_filter',
                   'picked_instances', 'saved_instances')

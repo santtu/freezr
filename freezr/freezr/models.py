@@ -3,6 +3,7 @@ from django.db import models
 from django.core.validators import validate_slug
 from django.core.exceptions import ValidationError
 from django.db import transaction, IntegrityError
+from django.contrib import auth
 import re
 import freezr.util as util
 import freezr.aws as aws
@@ -98,8 +99,17 @@ class Domain(BaseModel):
     # Active?
     active = models.BooleanField(default=True)
 
+    # Link to user that is the owner of this domain.
+    owner = models.ForeignKey(auth.models.User,
+                              related_name="owned_domains")
+
     def __unicode__(self):
         return self.name
+
+    class Meta:
+        permissions = (
+            ('domain_admin', 'Is domain admin'),
+            )
 
 class Account(BaseModel, aws.Account):
     # TODO: We really would want to add the AWS account ID here as
@@ -151,7 +161,8 @@ class Account(BaseModel, aws.Account):
         associated with this account. The result is useful for example
         in restricting queries only to regions that are relevant to
         this account."""
-        return list(set([project.region for project in self.projects.all()]))
+        all = [r for p in self.projects.all() for r in p.regions]
+        return list(set(all))
 
     @property
     def instances(self):
@@ -257,6 +268,9 @@ class ElasticIp(BaseModel):
 
 # Projects
 class Project(BaseModel):
+    # Project name
+    name = models.CharField(max_length=255)
+
     # State of this project
     state = models.CharField(max_length=30, choices=PROJECT_STATES_CHOICES, default='init')
 
@@ -269,14 +283,11 @@ class Project(BaseModel):
     def domain(self):
         return self.account.domain
 
-    # Region where this project applies to
-    region = models.CharField(max_length=30, choices=EC2_REGIONS_CHOICES)
-
-    # VPC id where to narrow this project scope to
-    vpc_id = models.CharField(max_length=30, blank=True, null=True)
-
-    # Project name and description
-    name = models.CharField(max_length=255)
+    # Region where this project applies to, this is encoded as a char
+    # field, below we have a property to allow setting and retrieving
+    # this as a list.
+    _regions = models.CharField(max_length=255, default=",".join(EC2_REGIONS))
+    # Long description
     description = models.TextField(blank=True)
 
     # Pick filter
@@ -306,3 +317,43 @@ class Project(BaseModel):
     @property
     def saved_instances(self):
         return self.filter_instances(self.save_filter)
+
+    @property
+    def regions(self):
+        return self._regions.split(",")
+
+    @regions.setter
+    def regions(self, value):
+        self._regions = list(set(value)).join(",")
+
+    class Meta:
+        permissions = (
+            ('freeze_project', 'Can freeze linked project assets'),
+            ('thaw_project', 'Can thaw linked project assets'),
+            )
+
+class ProjectGroupRelation(BaseModel):
+    """Relation object telling what permission is connected to which
+    Django Group object. This allows us to attach permissions to
+    groups, which in turn are attached to an relation, which in turn
+    is attached to a Project object.
+
+    This means that a single group can have 0 or 1
+    ProjectGroupRelations, which then has 1 Project association. To
+    check which project the group is associated with fetch via
+    `group.project_relation.project` (note that group.project_relation
+    may be None).
+
+    This cannot be done directly via group.project, since that would
+    imply there is only one group per project, which isn't true. There
+    may be multiple different groups. We could use ManyToMany, too,
+    but I think this is more explicit. And besides, we can later
+    attach additional information to this relation object, if
+    needed."""
+    project = models.ForeignKey('Project',
+                                related_name='group_relations',
+                                on_delete=models.CASCADE)
+
+    group = models.OneToOneField(auth.models.Group,
+                                 related_name='project_relation',
+                                 on_delete=models.CASCADE)
