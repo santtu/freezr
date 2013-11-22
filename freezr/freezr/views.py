@@ -34,6 +34,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
     model = Project
     serializer_class = ProjectSerializer
 
+    @action()
+    def freeze(self, request, pk):
+        return Response(status=status.HTTP_501_NOT_IMPLEMENTED)
+
+    @action()
+    def thaw(self, request, pk):
+        return Response(status=status.HTTP_501_NOT_IMPLEMENTED)
+
 class InstanceViewSet(viewsets.ReadOnlyModelViewSet):
     model = Instance
     serializer_class = InstanceSerializer
