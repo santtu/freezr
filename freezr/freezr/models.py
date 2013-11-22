@@ -4,6 +4,7 @@ from django.core.validators import validate_slug
 from django.core.exceptions import ValidationError
 from django.db import transaction, IntegrityError
 from django.contrib import auth
+from datetime import datetime
 import re
 import freezr.util as util
 import freezr.aws as aws
@@ -172,15 +173,22 @@ class Account(BaseModel):
         if regions is None:
             regions = self.regions
 
-        print("{0}.refresh: regions={1!r}".format(self, regions))
+        self.log.debug("refresh: %s, regions=%r", self, regions)
 
         for region in regions:
             try:
                 with transaction.atomic():
                     self.mate.refresh_region(self, region)
+                    self.updated = datetime.now()
+                    self.save()
+                    self.log.debug('done refresh with mate %r, updated %r', self.mate, self.updated)
             except IntegrityError:
                 self.log.exception("Error while updating account %s in region %s",
                                    self, region)
+
+        # timestamp is updated, even if len(regions) == 0
+        self.updated = datetime.now()
+        self.save()
 
     @property
     def regions(self):

@@ -1,5 +1,6 @@
 from django import test
 import logging
+import time
 from freezr.models import Account, Domain, Project, Instance
 from django.db.models import Q
 
@@ -26,18 +27,27 @@ class TestAccount(test.TestCase):
     def testAccountRefresh(self):
         # test account refresh calls the AWS mate object
         self.assertEqual(0, len(self.account.regions))
+        self.assertIsNone(self.account.updated)
+
+        old = self.account.updated
 
         self.account.refresh()
         self.assertEqual(0, len(self.mate.calls))
+        self.assertNotEqual(old, self.account.updated)
+
+        old = self.account.updated
+        log.debug("old=%r %r", old, type(old))
 
         Project(name="Test project", account=self.account,
                 _regions="a,b,c,d,e,f").save()
         self.assertEqual(6, len(self.account.regions))
 
+        time.sleep(0.01) # make sure some time passes, we're comparing timestamps
         self.account.refresh()
         self.assertEqual(6, len(self.mate.calls))
         self.assertTrue(all([c[0] == self.account for c in self.mate.calls]))
         self.assertEqual(set([u'a', u'b', u'c', u'd', u'e', u'f']), set([c[1] for c in self.mate.calls]))
+        self.assertNotEqual(old, self.account.updated)
 
         Project(name="Test project 2", account=self.account, _regions="").save()
         print(self.account.regions)
