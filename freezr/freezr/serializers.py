@@ -4,19 +4,6 @@ import logging
 
 log = logging.getLogger('freezr.serializers')
 
-class DomainSerializer(serializers.HyperlinkedModelSerializer):
-    class Meta:
-        model = Domain
-        fields = ('id', 'name', 'description', 'active', 'accounts')
-
-class AccountSerializer(serializers.HyperlinkedModelSerializer):
-    regions = serializers.Field()
-
-    class Meta:
-        model = Account
-        fields = ('id', 'domain', 'name', 'access_key',
-                  'active', 'projects', 'regions',
-                  'instances')
 
 class CommaStringListField(util.Logger, serializers.WritableField):
     def to_native(self, obj):
@@ -27,10 +14,37 @@ class CommaStringListField(util.Logger, serializers.WritableField):
         self.log.debug("from_native: self=%r data=%r", self, data)
         return ",".join(data)
 
+class LogEntrySerializer(serializers.ModelSerializer):
+    user_id = serializers.Field(source='user.id')
+    user = serializers.Field(source='user.username')
+
+    class Meta:
+        model = LogEntry
+        fields = ('type', 'time', 'message', 'details', 'user_id', 'user')
+
+class DomainSerializer(serializers.HyperlinkedModelSerializer):
+    log_entries = LogEntrySerializer(many=True)
+
+    class Meta:
+        model = Domain
+        fields = ('id', 'name', 'description', 'active', 'accounts', 'log_entries', 'domain')
+
+class AccountSerializer(serializers.HyperlinkedModelSerializer):
+    regions = serializers.Field()
+    updated = serializers.Field() # no user-initiated updates on this field
+    log_entries = LogEntrySerializer(many=True)
+
+    class Meta:
+        model = Account
+        fields = ('id', 'domain', 'name', 'access_key',
+                  'active', 'projects', 'regions',
+                  'instances', 'updated', 'log_entries')
+
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     picked_instances = serializers.Field()
     saved_instances = serializers.Field()
     regions = CommaStringListField(source='_regions')
+    log_entries = LogEntrySerializer(many=True)
 
     class Meta:
         model = Project
@@ -38,7 +52,9 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
                   'regions',
                   'name', 'description',
                   'elastic_ips', 'pick_filter', 'save_filter',
-                  'picked_instances', 'saved_instances')
+                  'picked_instances', 'saved_instances',
+                  'log_entries'
+                  )
 
 class InstanceSerializer(serializers.HyperlinkedModelSerializer):
     tags = serializers.Field()

@@ -1,7 +1,8 @@
 from __future__ import absolute_import
 from .celery import app
 from .models import Account
-from datetime import datetime, timedelta
+from django.utils import timezone
+from datetime import timedelta
 import logging
 
 log = logging.getLogger('freezr.tasks')
@@ -16,7 +17,7 @@ def refresh(older_than=3600, regions=None):
     """Refreshes all accounts that have not been updated in
     `older_than` seconds."""
 
-    limit = datetime.now() - timedelta(seconds=older_than)
+    limit = timezone.now() - timedelta(seconds=older_than)
     tasks = set()
 
     log.info('Refresh All: limit %d seconds', older_than)
@@ -24,6 +25,9 @@ def refresh(older_than=3600, regions=None):
     for account in Account.objects.all():
         if account.updated is None or account.updated <= limit:
             tasks.add(refresh_account.delay(account.id))
+        else:
+            log.debug('Account %r update newer than %d seconds, not refreshing',
+                      account, older_than)
 
 @app.task()
 def refresh_account(pk, regions=None):

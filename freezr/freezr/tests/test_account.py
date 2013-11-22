@@ -12,6 +12,7 @@ class TestAccount(test.TestCase):
 
         def refresh_region(self, account, region):
             self.calls.append((account, region))
+            return (0, 0, 0)
 
     def setUp(self):
         self.domain = Domain(name="Test domain", domain=".test")

@@ -33,11 +33,15 @@ class ProjectAdmin(admin.ModelAdmin):
     inlines = (ProjectGroupRelationInline,)
 #    form = ProjectAdminForm
 
+class LogEntryAdmin(admin.ModelAdmin):
+    readonly_fields = LogEntry._meta.get_all_field_names()
+
 def setup():
     admin.autodiscover()
     admin.site.register(Domain)
     admin.site.register(Account)
     admin.site.register(Project, ProjectAdmin)
+    admin.site.register(LogEntry, LogEntryAdmin)
     # Switch the default auth.admin.GroupAdmin and UserAdmin to our
     # own frezr.admin.GroupAdmin and UserAdmin classes.
 

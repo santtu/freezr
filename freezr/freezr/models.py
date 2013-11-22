@@ -4,7 +4,7 @@ from django.core.validators import validate_slug
 from django.core.exceptions import ValidationError
 from django.db import transaction, IntegrityError
 from django.contrib import auth
-from datetime import datetime
+from django.utils import timezone
 import re
 import freezr.util as util
 import freezr.aws as aws
@@ -96,6 +96,8 @@ class BaseModel(util.Logger, models.Model):
         self._log_entry(l)
         l.save()
 
+        self.log.info('%s: %s', l.type, l.message)
+
     class Meta:
         abstract = True
 
@@ -153,10 +155,10 @@ class Account(BaseModel):
     active = models.BooleanField(default=True)
 
     # When was the instance data last updated for this account
-    updated = models.DateField(blank=True, null=True)
+    updated = models.DateTimeField(blank=True, null=True)
 
     def __unicode__(self):
-        return unicode(self.domain) + "/" + self.access_key
+        return self.name + "/" + self.access_key
 
     # aws is argument here with a default so we can inject mock during
     # testing
@@ -175,20 +177,29 @@ class Account(BaseModel):
 
         self.log.debug("refresh: %s, regions=%r", self, regions)
 
+        total, added, deleted = 0, 0, 0
+        started = timezone.now()
+
         for region in regions:
             try:
                 with transaction.atomic():
-                    self.mate.refresh_region(self, region)
-                    self.updated = datetime.now()
+                    (t, a, d) = self.mate.refresh_region(self, region)
+                    self.updated = timezone.now()
                     self.save()
                     self.log.debug('done refresh with mate %r, updated %r', self.mate, self.updated)
+                    total, added, deleted = total + t, added + a, deleted + d
             except IntegrityError:
                 self.log.exception("Error while updating account %s in region %s",
                                    self, region)
 
         # timestamp is updated, even if len(regions) == 0
-        self.updated = datetime.now()
+        self.updated = timezone.now()
         self.save()
+
+        elapsed = timezone.now() - started
+
+        self.log_entry('Refreshed %d regions in %.2f seconds, total %d / added %d / deleted %d instances' % (
+                len(regions), elapsed.seconds + elapsed.microseconds / 1e6, total, added, deleted))
 
     @property
     def regions(self):
@@ -451,3 +462,7 @@ class LogEntry(models.Model):
     domain = models.ForeignKey('Domain', blank=True, null=True, related_name="log_entries", on_delete=models.CASCADE)
     account = models.ForeignKey('Account', blank=True, null=True, related_name="log_entries", on_delete=models.CASCADE)
     project = models.ForeignKey('Project', blank=True, null=True, related_name="log_entries", on_delete=models.CASCADE)
+
+    def __unicode__(self):
+        return "{0} {1}: {2} ({3})".format(self.time, self.type, self.message,
+                                         self.domain or self.account or self.project)

@@ -1,0 +1,53 @@
+- model: freezr.domain
+  pk: 1
+  fields:
+    domain: test.local
+    name: Test domain no. 1
+- model: freezr.domain
+  pk: 2
+  fields:
+    domain: domain.com
+    name: Test domain no. 2
+- model: freezr.account
+  pk: 1
+  fields:
+    name: Test account no. 1.1
+    access_key: '123456'
+    secret_key: 'secret'
+    domain: 1
+- model: freezr.account
+  pk: 2
+  fields:
+    name: Test account no. 1.2
+    access_key: '567890'
+    secret_key: 'suuupersecret'
+    domain: 1
+- model: freezr.account
+  pk: 3
+  fields:
+    name: Test account no. 2.1
+    access_key: 'fnord'
+    secret_key: 'quux'
+    domain: 2
+- model: freezr.project
+  pk: 1
+  fields:
+    name: Test project no. 1.1.1
+    pick_filter: ''
+    save_filter: ''
+    account: 1
+- model: freezr.project
+  pk: 2
+  fields:
+    name: Test project no. 2.1.1
+    pick_filter: ''
+    save_filter: ''
+    account: 3
+- model: freezr.logentry
+  pk: 1
+  fields:
+    account: 3
+    message: 'Sample log entry'
+    time: ! '2013-11-22
+      10:00:53.349330+00:00'
+    type: info

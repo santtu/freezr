@@ -5,7 +5,7 @@
   model: freezr.account
   pk: 1
 - fields: {account: 1, description: '', name: 'Test project (multi-zone)', _regions: 'us-east-1,us-west-1,us-west-2,eu-west-1',
-    state: init, pick_filter: 'tag[project] = test and tag[type] = staging', save_filter: 'tag[class] = ci'}
+    state: init, pick_filter: 'region = region', save_filter: 'tag[Name]'}
   model: freezr.project
   pk: 1
 - fields:

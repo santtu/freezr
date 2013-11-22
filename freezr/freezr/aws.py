@@ -31,7 +31,18 @@ class BaseAWS(util.Logger):
 
 class Account(BaseAWS):
     def refresh_region(self, account, region):
+        """Refreshes given `account` information on `region`. Returns
+        a three-value tuple (total, added, deleted) where `total` is
+        the number of instances seen during this update, `added` those
+        that were new (added new instance records to database) and
+        `deleted` those that had gone away, and were deleted from
+        database."""
+
         conn = self.connect_ec2(region)
+
+        if not conn:
+            account.log_entry('Could not connect to region %s', type='error')
+            return
 
         ## Basically just iterate through all instances in this
         ## account, compare that set to existing data records, update
@@ -124,3 +135,7 @@ class Account(BaseAWS):
                       self, region,
                       len(seen_instances), len(recorded_instances),
                       len(added_instances), len(disappeared_instances))
+
+        return (len(seen_instances),
+                len(added_instances),
+                len(disappeared_instances))

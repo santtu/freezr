@@ -88,9 +88,19 @@ STATIC_URL = '/static/'
 # Celery configuration
 #CELERY_RESULT_BACKEND='djcelery.backends.database:DatabaseBackend'
 #CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
-BROKER_URL = 'amqp://guest@localhost//'
+import datetime
 
-# nose
+BROKER_URL = 'amqp://guest@localhost//'
+CELERYBEAT_SCHEDULE = {
+    'periodic-refresh': {
+        'task': 'freezr.tasks.refresh',
+        'schedule': datetime.timedelta(minutes=30),
+        'args': (),
+        }
+    }
+CELERYBEAT_SCHEDULER = "djcelery.schedulers.DatabaseScheduler"
+
+# Nose
 TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
 
 # Logging: Add to existing django logging configuration, except when
@@ -119,3 +129,8 @@ if not 'test' in sys.argv:
                 }
             }
         }
+
+# REST framework settings
+REST_FRAMEWORK = {
+    'TEST_REQUEST_DEFAULT_FORMAT': 'json'
+}
