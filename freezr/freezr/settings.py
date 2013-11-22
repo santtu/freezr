@@ -10,6 +10,9 @@ https://docs.djangoproject.com/en/1.6/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
+import datetime
+import sys
+
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
 
@@ -26,6 +29,7 @@ TEMPLATE_DEBUG = True
 
 ALLOWED_HOSTS = []
 
+TESTING = 'test' in sys.argv
 
 # Application definition
 
@@ -88,25 +92,20 @@ STATIC_URL = '/static/'
 # Celery configuration
 #CELERY_RESULT_BACKEND='djcelery.backends.database:DatabaseBackend'
 #CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
-import datetime
 
 BROKER_URL = 'amqp://guest@localhost//'
-CELERYBEAT_SCHEDULE = {
-    'periodic-refresh': {
-        'task': 'freezr.tasks.refresh',
-        'schedule': datetime.timedelta(minutes=30),
-        'args': (),
-        }
-    }
+CELERY_TIMEZONE = 'UTC'
 CELERYBEAT_SCHEDULER = "djcelery.schedulers.DatabaseScheduler"
+
+if TESTING:
+    CELERY_ALWAYS_EAGER = True
 
 # Nose
 TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
 
 # Logging: Add to existing django logging configuration, except when
 # running tests, since nose will capture the log output itself
-import sys
-if not 'test' in sys.argv:
+if not TESTING:
     LOGGING = {
         'version': 1,
         'formatters': {

@@ -36,6 +36,7 @@
     pick_filter: ''
     save_filter: ''
     account: 1
+    _regions: 'us-east-1,ap-northeast-1,sa-east-1,ap-southeast-1,ap-southeast-2,us-west-2,us-west-1,eu-west-1'
 - model: freezr.project
   pk: 2
   fields:
@@ -43,6 +44,7 @@
     pick_filter: ''
     save_filter: ''
     account: 3
+    _regions: 'us-east-1,ap-northeast-1,sa-east-1,ap-southeast-1,ap-southeast-2,us-west-2,us-west-1,eu-west-1'
 - model: freezr.logentry
   pk: 1
   fields:

@@ -3,6 +3,8 @@ from .celery import app
 from .models import Account
 from django.utils import timezone
 from datetime import timedelta
+from celery.decorators import periodic_task
+from celery.task.schedules import crontab
 import logging
 
 log = logging.getLogger('freezr.tasks')
@@ -12,7 +14,13 @@ log = logging.getLogger('freezr.tasks')
 def debug_task(self):
     print('Request: {0!r}'.format(self.request))
 
+# The refresh task is scheduled to run every 10 minutes, but by
+# default we'll update entries only older than 1 hour. This means that
+# if an entry could not be updated (errors, failure in connection)
+# then it'll be retried within 10 minutes.
+
 @app.task()
+@periodic_task(run_every=crontab(minute='*/10'))
 def refresh(older_than=3600, regions=None):
     """Refreshes all accounts that have not been updated in
     `older_than` seconds."""
@@ -30,12 +38,20 @@ def refresh(older_than=3600, regions=None):
                       account, older_than)
 
 @app.task()
-def refresh_account(pk, regions=None):
+def refresh_account(pk, regions=None, older_than=None):
     """Refresh the given `pk` account, in given `regions`. If regions
-    is None then all regions for the account will be checked."""
+    is None then all regions for the account will be checked. The
+    `older_than` argument works like for refresh(), except by default
+    it is not set."""
 
     account = Account.objects.get(id=pk)
     log.info('Refresh Account: %r, regions=%r', account, regions)
+
+    limit = timezone.now() - timedelta(seconds=older_than)
+    if older_than is not None and account.updated is not None and account.updated > limit:
+        log.debug('Account %r update newer than %d seconds, not refreshing',
+                  account, older_than)
+        return
 
     # Ah well, probably should get a database transaction or something
     # like that here.

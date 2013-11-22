@@ -1,23 +1,18 @@
+from __future__ import absolute_import
 from django import test
 import logging
 import time
 from freezr.models import Account, Domain, Project, Instance
 from django.db.models import Q
+from .util import MateMock
 
 log = logging.getLogger(__file__)
 
 class TestAccount(test.TestCase):
-    class MateMock(object):
-        calls = []
-
-        def refresh_region(self, account, region):
-            self.calls.append((account, region))
-            return (0, 0, 0)
-
     def setUp(self):
         self.domain = Domain(name="Test domain", domain=".test")
         self.domain.save()
-        self.mate = TestAccount.MateMock()
+        self.mate = MateMock()
         self.account = Account(domain=self.domain,
                                name="Test account",
                                access_key="1234",
@@ -32,12 +27,15 @@ class TestAccount(test.TestCase):
 
         old = self.account.updated
 
+        # If there are no regions to update then there should be no
+        # calls to mate, and the update timestamp should not change
+        # from previous value.
+
         self.account.refresh()
         self.assertEqual(0, len(self.mate.calls))
-        self.assertNotEqual(old, self.account.updated)
+        self.assertIsNone(self.account.updated)
 
         old = self.account.updated
-        log.debug("old=%r %r", old, type(old))
 
         Project(name="Test project", account=self.account,
                 _regions="a,b,c,d,e,f").save()

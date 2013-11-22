@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import logging
 import time
 from freezr.models import Account, Domain, Project, Instance
@@ -9,6 +10,8 @@ from django.core.urlresolvers import reverse
 from rest_framework import status
 from itertools import chain
 from datetime import datetime
+import copy
+from .util import MateMockFactory
 
 log = logging.getLogger(__file__)
 
@@ -18,6 +21,22 @@ def flatu(items):
 
 class TestREST(test.APITestCase):
     fixtures = ('rest_tests',)
+
+    def assertSimilar(self, a, b, msg=None,
+                    sets=('regions','projects','accounts')):
+        """Compare two dicts understanding that some fields are
+        actually sets as lists and should be compared as sets and not
+        lists."""
+        a = copy.copy(a)
+        b = copy.copy(b)
+
+        for k in sets:
+            self.assertEqual(k in a, k in b)
+            if k in a:
+                self.assertSetEqual(set(a.pop(k)), set(b.pop(k)))
+
+        self.assertEqual(a, b, msg)
+
 
     def testListDomains(self):
         response = self.client.get(reverse('domain-list'))
@@ -29,7 +48,7 @@ class TestREST(test.APITestCase):
 
     def testGetDomain(self):
         response = self.client.get(reverse('domain-detail', args=[1]))
-        self.assertEqual(response.data,
+        self.assertSimilar(response.data,
                          {'id': 1,
                           'name': u'Test domain no. 1',
                           'description': u'',
@@ -39,7 +58,7 @@ class TestREST(test.APITestCase):
                           'log_entries': [],
                           'domain': u'test.local'})
         response = self.client.get(reverse('domain-detail', args=[2]))
-        self.assertEqual(response.data,
+        self.assertSimilar(response.data,
                          {'id': 2,
                           'name': u'Test domain no. 2',
                           'description': u'',
@@ -59,7 +78,7 @@ class TestREST(test.APITestCase):
 
     def testGetAccount(self):
         response = self.client.get(reverse('account-detail', args=[1]))
-        self.assertEqual(response.data,
+        self.assertSimilar(response.data,
                          {'id': 1,
                           'domain': 'http://testserver/api/domain/1/',
                           'name': u'Test account no. 1.1',
@@ -79,7 +98,7 @@ class TestREST(test.APITestCase):
                           'log_entries': []})
 
         response = self.client.get(reverse('account-detail', args=[2]))
-        self.assertEqual(response.data,
+        self.assertSimilar(response.data,
                          {'id': 2,
                           'domain': 'http://testserver/api/domain/1/',
                           'name': u'Test account no. 1.2',
@@ -91,9 +110,8 @@ class TestREST(test.APITestCase):
                           'updated': None,
                           'log_entries': []})
 
-        response = self.client.get(reverse('account-detail',
-                                           args=[3]))
-        self.assertEqual(response.data,
+        response = self.client.get(reverse('account-detail', args=[3]))
+        self.assertSimilar(response.data,
                          {'id': 3,
                           'domain': 'http://testserver/api/domain/2/',
                           'name': u'Test account no. 2.1',
@@ -132,7 +150,7 @@ class TestREST(test.APITestCase):
 
     def testGetProject(self):
         response = self.client.get(reverse('project-detail', args=[1]))
-        self.assertEqual(response.data,
+        self.assertSimilar(response.data,
                          {'id': 1,
                           'state': u'init',
                           'account': 'http://testserver/api/account/1/',
@@ -153,7 +171,7 @@ class TestREST(test.APITestCase):
                           'saved_instances': [],
                           'log_entries': []})
         response = self.client.get(reverse('project-detail', args=[2]))
-        self.assertEqual(response.data,
+        self.assertSimilar(response.data,
                          {'id': 2,
                           'state': u'init',
                           'account': 'http://testserver/api/account/3/',
@@ -173,3 +191,46 @@ class TestREST(test.APITestCase):
                           'picked_instances': [],
                           'saved_instances': [],
                           'log_entries': []})
+
+    # Note that this absolutely requires that you either have set up a
+    # testing celery with the same test database as this test is using
+    # (yeah, right), or have set CELERY_ALWAYS_EAGER = True in
+    # settings.
+
+    def testRefreshAccount(self):
+        for a in Account.objects.all():
+            log.debug("%s", a)
+
+        import freezr.aws
+        old_account = freezr.aws.Account
+        try:
+            factory = MateMockFactory()
+            freezr.aws.Account = factory
+
+            log.debug("regions=%r", Account.objects.get(pk=1).regions)
+
+            old = Account.objects.get(pk=1).updated
+            response = self.client.post(reverse('account-refresh', args=[1]))
+            log.debug("response=%r factory=%r factory.mates=%r "
+                      "factory.mate.calls=%r",
+                      response, factory, factory.mates, factory.mate.calls)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(factory.mates), 1)
+            self.assertEqual(len(factory.mate.calls), 8)
+            self.assertNotEqual(Account.objects.get(pk=1).updated, old)
+
+            factory = MateMockFactory()
+            freezr.aws.Account = factory
+
+            old = Account.objects.get(pk=3).updated
+            response = self.client.post(reverse('account-refresh', args=[3]))
+            log.debug("response=%r factory=%r factory.mates=%r "
+                      "factory.mate.calls=%r",
+                      response, factory, factory.mates, factory.mate.calls)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(factory.mates), 1)
+            self.assertEqual(len(factory.mate.calls), 8)
+            self.assertNotEqual(Account.objects.get(pk=3).updated, old)
+
+        finally:
+            freezr.aws.Account = old_account

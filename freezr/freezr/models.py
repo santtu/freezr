@@ -165,7 +165,7 @@ class Account(BaseModel):
     def __init__(self, *args, **kwargs):
         mate = kwargs.pop('mate', None)
         super(Account, self).__init__(*args, **kwargs)
-        self.mate = mate or aws.Account(self)
+        self.mate = mate
 
     def refresh(self, regions=None):
         """Refresh this account contents, updating list of tags,
@@ -177,6 +177,9 @@ class Account(BaseModel):
 
         self.log.debug("refresh: %s, regions=%r", self, regions)
 
+        if not self.mate:
+            self.mate = aws.Account(self)
+
         total, added, deleted = 0, 0, 0
         started = timezone.now()
 
@@ -186,15 +189,14 @@ class Account(BaseModel):
                     (t, a, d) = self.mate.refresh_region(self, region)
                     self.updated = timezone.now()
                     self.save()
-                    self.log.debug('done refresh with mate %r, updated %r', self.mate, self.updated)
+                    self.log.debug('%s: Done refresh with mate %r, updated %s, t/a/d %d/%d/%d', self, self.mate, self.updated, t, a, d)
                     total, added, deleted = total + t, added + a, deleted + d
             except IntegrityError:
                 self.log.exception("Error while updating account %s in region %s",
                                    self, region)
 
-        # timestamp is updated, even if len(regions) == 0
-        self.updated = timezone.now()
-        self.save()
+            # TODO: catch other known exceptions from mate. As well in
+            # there, convert those into known exceptions.
 
         elapsed = timezone.now() - started
 

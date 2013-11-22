@@ -3,6 +3,9 @@ from freezr.views import *
 from rest_framework import viewsets, routers
 from django.contrib import admin
 import freezr.admin
+import logging
+
+log = logging.getLogger('freezr.urls')
 
 router = routers.DefaultRouter()
 router.register(r'domain', DomainViewSet)
@@ -18,3 +21,6 @@ urlpatterns = patterns(
     url(r'^admin/', include(admin.site.urls)),
     url(r'^api/', include(router.urls))
     )
+
+log.debug("urlpatterns: %r", urlpatterns)
+log.debug("router.urls: %r", router.urls)
