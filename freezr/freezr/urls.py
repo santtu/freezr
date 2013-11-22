@@ -21,6 +21,3 @@ urlpatterns = patterns(
     url(r'^admin/', include(admin.site.urls)),
     url(r'^api/', include(router.urls))
     )
-
-log.debug("urlpatterns: %r", urlpatterns)
-log.debug("router.urls: %r", router.urls)
