@@ -72,10 +72,28 @@ INSTANCE_STATE_CHOICES = (
 
 INSTANCE_STATES = firsts(INSTANCE_STATE_CHOICES)
 
+LOG_ENTRY_TYPES_CHOICES = (
+    ('info', 'Informational'),
+    ('exception', 'Program exception'),
+    ('error', 'Error'),
+    ('audit', 'Configuration changes')
+    )
+
+LOG_ENTRY_TYPES = firsts(LOG_ENTRY_TYPES_CHOICES)
+
 class BaseModel(util.Logger, models.Model):
     """Just a common base model doing some mixins and stuff."""
     def __init__(self, *args, **kwargs):
         super(BaseModel, self).__init__(*args, **kwargs)
+
+    def log_entry(self, message, type='info', details=None, user=None):
+        """Create and save a log entry. Children of this class must
+        define a method _log_entry that (at the least) will fill
+        the corresponding log entry reference field (see LogEntry
+        model for details)."""
+        l = LogEntry(message=message, type=type, details=details, user=user)
+        self._log_entry(l)
+        l.save()
 
     class Meta:
         abstract = True
@@ -105,6 +123,9 @@ class Domain(BaseModel):
 
     def __unicode__(self):
         return self.name
+
+    def _log_entry(self, l):
+        l.domain = self
 
     class Meta:
         permissions = (
@@ -183,6 +204,9 @@ class Account(BaseModel):
         """Create a new project under this account."""
         return Project(account=self, **kwargs)
 
+    def _log_entry(self, l):
+        l.account = self
+
 class Tag(BaseModel):
     # Tag key
     key = models.CharField(max_length=TAG_KEY_LENGTH_MAX)
@@ -206,6 +230,9 @@ class InstanceTag(Tag):
 
     def __unicode__(self):
         return self.key + "=" + self.value
+
+    def _log_entry(self, l):
+        l.account = self.instance.account
 
 class Instance(BaseModel):
     # Which account this instances has been retrieved from.
@@ -257,6 +284,9 @@ class Instance(BaseModel):
 
     def __cmp__(self, other):
         return self.instance_id.__cmp__(other.instance_id)
+
+    def _log_entry(self, l):
+        l.account = self.account
 
     class Meta:
         # Actually region + instance_id is unique, but we do not want
@@ -351,6 +381,9 @@ class Project(BaseModel):
     def regions(self, value):
         self._regions = list(set(value)).join(",")
 
+    def _log_entry(self, l):
+        l.project = self
+
     class Meta:
         permissions = (
             ('freeze_project', 'Can freeze linked project assets'),
@@ -382,3 +415,31 @@ class ProjectGroupRelation(BaseModel):
     group = models.OneToOneField(auth.models.Group,
                                  related_name='project_relation',
                                  on_delete=models.CASCADE)
+
+    def _log_entry(self, l):
+        l.project = self.project
+
+class LogEntry(models.Model):
+    # Entry type
+    type = models.CharField(max_length=10, default='info', choices=LOG_ENTRY_TYPES_CHOICES)
+
+    # Entry time
+    time = models.DateTimeField(auto_now_add=True)
+
+    # User who initiated the action, if applicable (may be null for
+    # scheduled tasks, for example)
+    user = models.ForeignKey(auth.models.User, on_delete=models.SET_NULL, blank=True, null=True, related_name='+log_entries')
+
+    # Main entry message text, should never be empty
+    message = models.TextField()
+
+    # Additional details, may be empty
+    details = models.TextField(blank=True, null=True)
+
+    # Finally, a single log entry may be under either a domain,
+    # account or project. Only *ONE* of these should be set at any
+    # point (OTOH, we don't enforce that at the model level) so that
+    # the delete cascade works correctly.
+    domain = models.ForeignKey('Domain', blank=True, null=True, related_name="log_entries", on_delete=models.CASCADE)
+    account = models.ForeignKey('Account', blank=True, null=True, related_name="log_entries", on_delete=models.CASCADE)
+    project = models.ForeignKey('Project', blank=True, null=True, related_name="log_entries", on_delete=models.CASCADE)
