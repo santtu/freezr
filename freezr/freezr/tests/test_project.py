@@ -2,11 +2,12 @@ from django import test
 import logging
 from freezr.models import Account, Domain, Project, Instance
 from django.db.models import Q
+import freezr.tests.util as util
 
 log = logging.getLogger(__file__)
 
 
-class TestAccount(test.TestCase):
+class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
     def setUp(self):
         self.domain = Domain(name="test", domain=".test")
         self.domain.save()
@@ -38,34 +39,6 @@ class TestAccount(test.TestCase):
 
         return inner(self.project, pick_filter, save_filter)
 
-    def instance(self, account=None, **kwargs):
-        """Easier instance creation -- will put sensible defaults,
-        like unique id if not present etc. Tags are specified via
-        giving either `tags` argument, or via tag_KEY=VALUE arguments
-        (or both)."""
-        account = account or self.account
-
-        self.id += 1
-
-        kwargs.setdefault('instance_id', "i-%06d" % (self.id,))
-        kwargs.setdefault('type', 'm1.small')
-        kwargs.setdefault('region', 'us-east-1')
-        kwargs.setdefault('state', 'running')
-
-        tags = kwargs.pop('tags', {})
-
-        # extract all tags .. they are prefixed tag_
-        for n in [n for n in kwargs.keys() if n.startswith('tag_')]:
-            tags[n[4:]] = kwargs.pop(n)
-
-        i = account.new_instance(**kwargs)
-        i.save()
-
-        for k, v in tags.iteritems():
-            t = i.new_tag(key=k, value=v)
-            t.save()
-
-        return i
 
     def createSet1(self):
         """create instance set 1 -- simple, three running instances,

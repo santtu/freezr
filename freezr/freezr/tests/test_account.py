@@ -4,11 +4,11 @@ import logging
 import time
 from freezr.models import Account, Domain, Project, Instance
 from django.db.models import Q
-from .util import MateMock
+from .util import MateMock, FreezrTestCaseMixin
 
 log = logging.getLogger(__file__)
 
-class TestAccount(test.TestCase):
+class TestAccount(FreezrTestCaseMixin, test.TestCase):
     def setUp(self):
         self.domain = Domain(name="Test domain", domain=".test")
         self.domain.save()
@@ -80,3 +80,39 @@ class TestAccount(test.TestCase):
         self.assertEqual(9, self.account.instances.count())
         self.assertEqual(5, self.account.instances.filter(state="running").count())
         self.assertEqual(4, self.account.instances.filter(~Q(state="running")).count())
+
+    def testAccountProjectState(self):
+        # test that account moves projects from init state to running
+        # when the project matches instances
+
+        p = self.account.new_project(name='test',
+                                     _regions='a',
+                                     pick_filter='tag[Name] = target')
+        p.save()
+        project_id = p.id
+
+        def assertState(state):
+            self.assertEqual(Project.objects.get(pk=project_id).state,
+                             state)
+
+        # First verify that it is in the expected state at beginning.
+        assertState('init')
+
+        # Refresh should not change that
+        self.account.refresh()
+        assertState('init')
+
+        # Not even when there's (non-matching) instance.
+        self.instance(region='a')
+        self.account.refresh()
+        assertState('init')
+
+        # But when there's one ...
+        i = self.instance(region='a', tag_Name='target')
+        self.account.refresh()
+        assertState('running')
+
+        # even if it later goes away
+        i.delete()
+        self.account.refresh()
+        assertState('running')

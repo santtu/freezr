@@ -203,6 +203,15 @@ class Account(BaseModel):
         self.log_entry('Refreshed %d regions in %.2f seconds, total %d / added %d / deleted %d instances' % (
                 len(regions), elapsed.seconds + elapsed.microseconds / 1e6, total, added, deleted))
 
+        # Go through projects that are 'init' state and see if they
+        # have any picked or saved instances --- then we move them to
+        # "running" state.
+        for project in self.projects.filter(state='init').all():
+            if project.picked_instances or project.saved_instances:
+                project.log_entry('Moving {0} from initializing to running state'.format(project))
+                project.state = 'running'
+                project.save()
+
     @property
     def regions(self):
         """Returns list of regions that should be checked for this
@@ -405,6 +414,16 @@ class Project(BaseModel):
     def _log_entry(self, l):
         l.project = self
 
+    def freeze(self):
+        if self.state != 'running':
+            return
+
+        self.log_entry('Starting to freeze project')
+        self.log.debug("freeze: self=%r", self)
+
+    def thaw(self):
+        self.log.debug("thaw: self=%r", self)
+
     class Meta:
         permissions = (
             ('freeze_project', 'Can freeze linked project assets'),
@@ -457,6 +476,12 @@ class LogEntry(models.Model):
     # Additional details, may be empty
     details = models.TextField(blank=True, null=True)
 
+    # System error flag .. this is used for two things, first, system
+    # errors are not normally shown for regular users, and
+    # secondarily, syste errors may have domain, account and project
+    # set to None (which normally shouldn't happen).
+    system_error = models.BooleanField(default=False)
+
     # Finally, a single log entry may be under either a domain,
     # account or project. Only *ONE* of these should be set at any
     # point (OTOH, we don't enforce that at the model level) so that
@@ -468,3 +493,14 @@ class LogEntry(models.Model):
     def __unicode__(self):
         return "{0} {1}: {2} ({3})".format(self.time, self.type, self.message,
                                          self.domain or self.account or self.project)
+
+    def set_object(self, obj):
+        """Utility routine that tries to set `obj` to the correct slot,
+        either `domain`, `account` or `project`. If none matches,
+        does nothing."""
+        if isinstance(obj, Domain):
+            self.domain = obj
+        elif isinstance(obj, Account):
+            self.account = obj
+        elif isinstance(obj, Project):
+            self.project = obj

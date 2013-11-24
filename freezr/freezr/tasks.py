@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 from .celery import app
-from .models import Account
+from .models import Account, Project
 from django.utils import timezone
 from datetime import timedelta
 from celery.decorators import periodic_task
@@ -46,6 +46,9 @@ def refresh_account(pk, regions=None, older_than=None):
 
     account = Account.objects.get(id=pk)
     log.info('Refresh Account: %r, regions=%r', account, regions)
+
+    if older_than is None or older_than < 0:
+        older_than = 0
 
     limit = timezone.now() - timedelta(seconds=older_than)
     if older_than is not None and account.updated is not None and account.updated > limit:
