@@ -52,10 +52,19 @@ class ProjectViewSet(util.Logger, viewsets.ModelViewSet):
             return Response({'error': 'Project state is not valid for freezing'},
                             status=status.HTTP_409_CONFLICT)
 
-        async = tasks.freeze_project.delay(project.id)
+        # Do a forced refresh on the account just before freeze so we
+        # have as up-to-date information as possible. (Freeze operates
+        # based on our knowledge of the account.)
+        async = (tasks.refresh_account.si(project.account.id,
+                                          older_than=0) |
+                 tasks.freeze_project.si(project.id)).delay()
+
+        #tasks.freeze_project.delay(project.id)
         self.log.debug("freeze: async=%r", async)
 
-        return Response(status=status.HTTP_501_NOT_IMPLEMENTED)
+        return Response({'message': 'Project freezing started',
+                         'operation': async.id},
+                        status=status.HTTP_202_ACCEPTED)
 
     @action()
     @util.log_error(Project)
@@ -63,9 +72,22 @@ class ProjectViewSet(util.Logger, viewsets.ModelViewSet):
         self.log.debug("thaw: self=%r request=%r pk=%r",
                        self, request, pk)
         project = Project.objects.get(pk=pk)
-        async = tasks.thaw_project.delay(project.id)
+
+        if project.state != 'frozen':
+            return Response({'error': 'Project state is not valid for freezing'},
+                            status=status.HTTP_409_CONFLICT)
+
+        # Again, do a forced refresh before starting the thaw
+        # operation.
+        async = (tasks.refresh_account.si(project.account.id,
+                                          older_than=0) |
+                 tasks.thaw_project.si(project.id)).delay()
+
         self.log.debug("freeze: async=%r", async)
-        return Response(status=status.HTTP_501_NOT_IMPLEMENTED)
+
+        return Response({'message': 'Project thawing started',
+                         'operation': async.id},
+                        status=status.HTTP_202_ACCEPTED)
 
 class InstanceViewSet(viewsets.ReadOnlyModelViewSet):
     model = Instance
