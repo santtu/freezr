@@ -361,18 +361,18 @@ class Project(BaseModel):
     description = models.TextField(blank=True)
 
     # Pick filter
-    pick_filter = models.TextField(blank=True, null=True)
+    pick_filter = models.TextField(blank=True, default='')
 
     # Save filter
-    save_filter = models.TextField(blank=True, null=True)
+    save_filter = models.TextField(blank=True, default='')
 
     # Terminate filter
-    terminate_filter = models.TextField(blank=True, null=True)
+    terminate_filter = models.TextField(blank=True, default='')
 
     def __unicode__(self):
         return unicode(self.account) + "/" + self.name
 
-    def filter_instances(self, filter_text, filter_pre=None):
+    def filter_instances(self, filter_text, filter_from=None, filter_not=None):
         """Return a list of instances that match the `filter_text`
         filter pattern under the account of this project.
 
@@ -382,18 +382,21 @@ class Project(BaseModel):
         under an account you'd have to write an always-true statement
         like "region = region"."""
 
-        if not filter_text:
+        if not filter_text or len(filter_text) == 0:
             return []
 
-        f = filter.Filter(filter_text)
+        f = filter.Filter.parse(filter_text)
 
-        if filter_pre:
-            f = filter.Filter(filter_pre).AND(f)
+        if filter_from:
+            f = filter.Filter.parse(filter_from).AND(f)
+
+        if filter_not:
+            f = filter.Filter.parse(filter_not).NOT().AND(f)
 
         picked = set()
 
         for instance in self.account.instances.all():
-            self.log.debug("filter: looking at %s", instance)
+            #self.log.debug("filter: looking at %s with %r", instance, f.format())
             if f.evaluate(instance.environment):
                 picked.add(instance)
 
@@ -413,7 +416,9 @@ class Project(BaseModel):
 
     @property
     def terminated_instances(self):
-        return self.filter_instances(self.terminate_filter, self.pick_filter)
+        return self.filter_instances(self.terminate_filter,
+                                     filter_not=self.save_filter,
+                                     filter_from=self.pick_filter)
 
     @property
     def skipped_instances(self):

@@ -30,6 +30,10 @@ class TestFilter(unittest.TestCase):
     # false) given the environment defined below.
 
     SUCCESS = (
+        # true/false literals
+        ('true', True),
+        ('false', False),
+
         # Basic value tests
         ('region', True),
         ('region = moon', False),
@@ -53,6 +57,16 @@ class TestFilter(unittest.TestCase):
         ('tag[unexistent] != other', True),
 
         # And/or/not logic tests
+        ('false or false', False),
+        ('true or false', True),
+        ('false or true', True),
+        ('true or true', True),
+
+        ('false and false', False),
+        ('true and false', False),
+        ('false and true', False),
+        ('true and true', True),
+
         ('tag[t] or tag[t]', True),
         ('tag[t] and tag[t]', True),
         ('tag[t] or tag[f]', True),
@@ -97,7 +111,7 @@ class TestFilter(unittest.TestCase):
 
         for text in self.FAIL:
             try:
-                f = Filter(text)
+                f = Filter.parse(text)
                 succeeded.append((text, f.format()))
             except ParseException as ex:
                 pass
@@ -115,7 +129,7 @@ class TestFilter(unittest.TestCase):
         for case in self.SUCCESS:
             text = case[0]
             try:
-                f = Filter(text)
+                f = Filter.parse(text)
             except ParseException as ex:
                 failed.append((text, str(ex)))
 
@@ -134,7 +148,7 @@ class TestFilter(unittest.TestCase):
             # Don't care about exceptions here, testFilterParseSuccess
             # will produce nicer output on any failures of SUCCESS
             # elements.
-            f = Filter(text)
+            f = Filter.parse(text)
             log.debug("{0!r} parsed as {1!r}".format(text, f.format()))
             result = f.evaluate(self.ENVIRONMENT)
             log.debug("result is {0}".format(result))

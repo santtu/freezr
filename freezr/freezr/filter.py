@@ -24,6 +24,18 @@ def dumper(w):
 
     return func
 
+def toksz(cls):
+    return lambda s, l, t: cls()
+
+def toks(cls):
+    return lambda s, l, t: cls(t)
+
+def toks0(cls):
+    return lambda s, l, t: cls(t[0])
+
+def toks00(cls):
+    return lambda s, l, t: cls(t[0][0])
+
 # def reorderInlineOperation(s, l, t):
 #     ret = (t[1], t[0], t[2])
 #     print("reorder: s={0!r} l={1!r} t={2!r} => {3!r}".format(s, l, t, ret))
@@ -38,12 +50,25 @@ class Element(object):
     def __str__(self):
         return unicode(self)
 
+class AlwaysFalse(Element):
+    def evaluate(self, env):
+        return False
+
+    def __unicode__(self):
+        return "false"
+
+class AlwaysTrue(Element):
+    def evaluate(self, env):
+        return True
+
+    def __unicode__(self):
+        return "true"
+
 class Literal(Element):
     SIMPLE_LITERAL_RE = re.compile(r'^[-a-zA-Z0-9]+$')
 
-    def __init__(self, s, loc, toks):
-        self.value = toks[0]
-        #print("Literal: toks={0!r}".format(toks[0]))
+    def __init__(self, value):
+        self.value = value
 
     def __unicode__(self):
         if (self.value in Variable.VARIABLES or
@@ -59,8 +84,8 @@ class Literal(Element):
 class Variable(Element):
     VARIABLES = ('region', 'storage', 'type', 'vpc')
 
-    def __init__(self, s, loc, toks):
-        self.variable = toks[0]
+    def __init__(self, variable):
+        self.variable = variable
 
     def __unicode__(self):
         return self.variable
@@ -92,9 +117,8 @@ class Logical(Element):
         return "{0}".format(expr)
 
 class Not(Logical):
-    def __init__(self, s, loc, toks):
-        #dump(toks)
-        self.expr = toks[0][0]
+    def __init__(self, expr):
+        self.expr = expr
 
     def __unicode__(self):
         return "not {0}".format(self.quoted(self.expr))
@@ -103,9 +127,10 @@ class Not(Logical):
         return not self.expr.evaluate(env)
 
 class And(Logical):
-    def __init__(self, s, loc, toks):
+    def __init__(self, exprs):
         #dump(toks)
-        self.ands = toks[0]
+        #self.ands = toks[0]
+        self.ands = exprs
 
     def __unicode__(self):
         return " and ".join(map(lambda a: self.quoted(a), self.ands))
@@ -117,9 +142,8 @@ class And(Logical):
         return True
 
 class Or(Logical):
-    def __init__(self, s, loc, toks):
-        #dump(toks)
-        self.ors = toks[0]
+    def __init__(self, exprs):
+        self.ors = exprs
 
     def __unicode__(self):
         return " or ".join(map(lambda a: self.quoted(a), self.ors))
@@ -142,10 +166,10 @@ class Comparison(Element):
         '!~': (lambda a, b: not (re.search(b, a) is not None)),
         }
 
-    def __init__(self, s, loc, toks):
-        self.op = toks[1]
-        self.lhs = toks[0]
-        self.rhs = toks[2]
+    def __init__(self, exprs):
+        self.op = exprs[1]
+        self.lhs = exprs[0]
+        self.rhs = exprs[2]
 
     def __unicode__(self):
         return "{0} {1} {2}".format(self.lhs, self.op, self.rhs)
@@ -171,10 +195,10 @@ class NotNull(Element):
         return value is not None and value != ""
 
 def get_parser():
-    op_literal = (Word(alphanums + ",.-_") | dblQuotedString.setParseAction(removeQuotes) | sglQuotedString.addParseAction(removeQuotes)).addParseAction(Literal)
+    op_literal = (Word(alphanums + ",.-_") | dblQuotedString.setParseAction(removeQuotes) | sglQuotedString.addParseAction(removeQuotes)).addParseAction(toks0(Literal))
 
     op_tag = (Keyword('tag') + Suppress('[') + op_literal + Suppress(']')).setParseAction(Tag)
-    op_value = op_tag | oneOf(" ".join(Variable.VARIABLES)).setParseAction(Variable)
+    op_value = op_tag | oneOf(" ".join(Variable.VARIABLES)).setParseAction(toks0(Variable))
 
     op_lhs = op_value
     op_rhs = op_value | op_literal
@@ -183,16 +207,18 @@ def get_parser():
     op_or = Keyword("or")
     op_not = Keyword("not")
 
-    op_compare_expression = ((op_lhs + op_compare + op_rhs).addParseAction(Comparison))
-    op_test_expression = Group(op_lhs).addParseAction(lambda s, l, t: t[0]).addParseAction(NotNull)
-    op_value_expression = op_compare_expression | op_test_expression
+    op_true = Suppress(Keyword("true")).setParseAction(toksz(AlwaysTrue))
+    op_false = Suppress(Keyword("false")).setParseAction(toksz(AlwaysFalse))
 
+    op_compare_expression = ((op_lhs + op_compare + op_rhs).addParseAction(toks(Comparison)))
+    op_test_expression = Group(op_lhs).addParseAction(lambda s, l, t: t[0]).addParseAction(NotNull)
+    op_value_expression = op_false | op_true | op_compare_expression | op_test_expression
 
     op_expression = (StringStart()
                      + infixNotation(op_value_expression,
-                                     [(Suppress(op_not), 1, opAssoc.RIGHT, Not),
-                                      (Suppress(op_and), 2, opAssoc.LEFT, And),
-                                      (Suppress(op_or), 2, opAssoc.LEFT, Or)])
+                                     [(Suppress(op_not), 1, opAssoc.RIGHT, toks00(Not)),
+                                      (Suppress(op_and), 2, opAssoc.LEFT, toks0(And)),
+                                      (Suppress(op_or), 2, opAssoc.LEFT, toks0(Or))])
                      + StringEnd())
 
     return op_expression
@@ -200,14 +226,21 @@ def get_parser():
 class Filter(object):
     parser = get_parser()
 
-    def __init__(self, text):
-        self._expression = self.parser.parseString(text)[0]
+    def __init__(self, expression=AlwaysFalse()):
+        self._expression = expression
+
+    @classmethod
+    def parse(cls, text):
+        return cls(cls.parser.parseString(text)[0])
 
     def AND(self, other):
-        return And(None, None, [[self, other]])
+        return Filter(And([self.expression, other.expression]))
 
     def OR(self, other):
-        return Or(None, None, [[self, other]])
+        return Filter(Or([self.expression, other.expression]))
+
+    def NOT(self):
+        return Filter(Not(self))
 
     @property
     def expression(self):
@@ -272,11 +305,11 @@ if __name__ == "__main__":
     for test in tests:
         print("-----------------: " + test)
         try:
-            ret = Filter(test).expression
+            ret = Filter.parse(test).expression
             #print(repr(ret))
             fmt = format(ret)
             print("=================: " + fmt)
-            ret2 = Filter(fmt).expression
+            ret2 = Filter.parse(fmt).expression
             fmt2 = format(ret2)
             assert fmt == fmt2, "Results don't match:\n 1. {0}\n 2. {1}".format(fmt, fmt2)
         except ParseException as ex:

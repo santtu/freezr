@@ -150,8 +150,10 @@ class TestREST(test.APITestCase):
         self.assertItemsEqual(flatu([d.keys() for d in response.data]),
                               ('id', 'state', 'account', 'regions', 'name',
                                'description', 'elastic_ips', 'pick_filter',
-                               'save_filter', 'picked_instances',
-                               'saved_instances', 'log_entries', 'url'))
+                               'save_filter', 'terminate_filter',
+                               'picked_instances', 'saved_instances',
+                               'terminated_instances', 'skipped_instances',
+                               'log_entries', 'url'))
 
     def testGetProject(self):
         response = self.client.get(reverse('project-detail', args=[1]))
@@ -172,8 +174,11 @@ class TestREST(test.APITestCase):
                           'elastic_ips': [],
                           'pick_filter': u'',
                           'save_filter': u'',
+                          'terminate_filter': u'',
                           'picked_instances': [],
                           'saved_instances': [],
+                          'terminated_instances': [],
+                          'skipped_instances': [],
                           'log_entries': [],
                           'url': 'http://testserver/api/project/1/'})
         response = self.client.get(reverse('project-detail', args=[2]))
@@ -194,8 +199,11 @@ class TestREST(test.APITestCase):
                           'elastic_ips': [],
                           'pick_filter': u'',
                           'save_filter': u'',
+                          'terminate_filter': u'',
                           'picked_instances': [],
                           'saved_instances': [],
+                          'terminated_instances': [],
+                          'skipped_instances': [],
                           'log_entries': [],
                           'url': 'http://testserver/api/project/2/'})
 
