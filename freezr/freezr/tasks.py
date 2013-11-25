@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 from .celery import app
-from .models import Account, Project
+from .models import Account, Project, Instance
 from django.utils import timezone
 from datetime import timedelta
 from celery.decorators import periodic_task
@@ -10,6 +10,11 @@ import logging
 import freezr.aws
 
 log = logging.getLogger('freezr.tasks')
+# shutting-down is a transition, but from our point of view the
+# instances is already gone when it starts that transition
+STABLE_INSTANCE_STATES = ('running', 'stopped',
+                            'terminated', 'shutting-down')
+REFRESH_INSTANCE_INTERVAL = 5
 
 # Just a debug task, get rid of it later.
 @app.task(bind=True)
@@ -36,7 +41,8 @@ def refresh(older_than=3600, regions=None):
         if account.updated is None or account.updated <= limit:
             tasks.add(refresh_account.delay(account.id))
         else:
-            log.debug('Account %r update newer than %d seconds, not refreshing',
+            log.debug('Account %r update newer than %d seconds, '
+                      'not refreshing',
                       account, older_than)
 
 @app.task()
@@ -53,7 +59,8 @@ def refresh_account(pk, regions=None, older_than=None):
         older_than = 0
 
     limit = timezone.now() - timedelta(seconds=older_than)
-    if older_than is not None and account.updated is not None and account.updated > limit:
+    if (older_than is not None and account.updated is not None and
+        account.updated > limit):
         log.debug('Account %r update newer than %d seconds, not refreshing',
                   account, older_than)
         return
@@ -61,6 +68,17 @@ def refresh_account(pk, regions=None, older_than=None):
     # Ah well, probably should get a database transaction or something
     # like that here.
     account.refresh(regions=regions, aws=freezr.aws.AwsInterface(account))
+
+    # See if any of the instances ended up in a "transitioning" state,
+    # fire separate update tasks for them.
+    for instance in account.instances.all():
+        if instance.state not in STABLE_INSTANCE_STATES:
+            log.debug('Refresh Account: Instance %s in transitioning '
+                      'state "%s", scheduling refresh',
+                      instance, instance.state)
+
+            refresh_instance.apply_async([instance.id],
+                                         countdown=REFRESH_INSTANCE_INTERVAL)
 
 @app.task()
 def freeze_project(pk):
@@ -73,3 +91,35 @@ def thaw_project(pk):
     project = Project.objects.get(id=pk)
     log.info('Thaw Project: %r', project)
     project.thaw(aws=freezr.aws.AwsInterface(project.account))
+
+@app.task()
+def refresh_instance(pk):
+    def get():
+        try:
+            return Instance.objects.get(id=pk)
+        except Instance.DoesNotExist:
+            return None
+
+    instance = get()
+    if not instance:
+        log.info("Refresh instance: called on non-existent instance "
+                 "pk=%r .. maybe it has already gone away otherwise?", pk)
+        return
+
+    instance_id = instance.instance_id
+    log.info('Refresh instance: %r', instance)
+
+    instance.refresh(aws=freezr.aws.AwsInterface(instance.account))
+
+    instance = get()
+
+    if not instance or instance.state in STABLE_INSTANCE_STATES:
+        log.info('Refresh instance: Instance %s stabilized or gone away, '
+                 'no need to reschedule', instance_id)
+        return
+
+    log.info('Refresh instance: instance %s still in '
+             'a transitioning state "%s", rescheduling',
+             instance, instance.state)
+
+    refresh_instance.apply_async([pk], countdown=REFRESH_INSTANCE_INTERVAL)

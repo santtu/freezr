@@ -55,9 +55,11 @@ class ProjectViewSet(util.Logger, viewsets.ModelViewSet):
         # Do a forced refresh on the account just before freeze so we
         # have as up-to-date information as possible. (Freeze operates
         # based on our knowledge of the account.)
-        async = (tasks.refresh_account.si(project.account.id,
-                                          older_than=0) |
-                 tasks.freeze_project.si(project.id)).delay()
+        async = (
+            tasks.refresh_account.si(project.account.id, older_than=0) |
+            tasks.freeze_project.si(project.id) |
+            tasks.refresh_account.si(project.account.id, older_than=0)
+            ).delay()
 
         #tasks.freeze_project.delay(project.id)
         self.log.debug("freeze: async=%r", async)
@@ -74,14 +76,16 @@ class ProjectViewSet(util.Logger, viewsets.ModelViewSet):
         project = Project.objects.get(pk=pk)
 
         if project.state != 'frozen':
-            return Response({'error': 'Project state is not valid for freezing'},
+            return Response({'error': 'Project state is not valid for thawing'},
                             status=status.HTTP_409_CONFLICT)
 
         # Again, do a forced refresh before starting the thaw
         # operation.
-        async = (tasks.refresh_account.si(project.account.id,
-                                          older_than=0) |
-                 tasks.thaw_project.si(project.id)).delay()
+        async = (
+            tasks.refresh_account.si(project.account.id, older_than=0) |
+            tasks.thaw_project.si(project.id) |
+            tasks.refresh_account.si(project.account.id, older_than=0)
+            ).delay()
 
         self.log.debug("freeze: async=%r", async)
 

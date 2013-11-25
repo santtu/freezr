@@ -316,6 +316,12 @@ class Instance(BaseModel):
     def _log_entry(self, l):
         l.account = self.account
 
+    def refresh(self, aws):
+        with transaction.atomic():
+            aws.refresh_instance(self)
+
+        # Do not do anything after this, we might have been deleted.
+
     class Meta:
         # Actually region + instance_id is unique, but we do not want
         # to leak information between domains. Conflicts within
@@ -443,27 +449,38 @@ class Project(BaseModel):
         if self.state != 'running':
             return
 
-        self.log_entry('Starting to freeze project')
+        self.log_entry('Freezing project')
 
-        picked_instances = self.picked_instances
-        save_instances = self.saved_instances
-        terminate_instances = self.terminated_instances
+        picked_instances = set(self.picked_instances)
+        save_instances = set(self.saved_instances)
+        terminate_instances = set(self.terminated_instances)
+        skip_instances = set(self.skipped_instances)
 
         self.log.debug("freeze: self=%r picked_instances=%r "
-                       "save_instances=%r terminate_instances=%r",
+                       "save_instances=%r terminate_instances=%r "
+                       "skip_instances=%r",
                        self, picked_instances, save_instances,
-                       terminate_instances)
+                       terminate_instances, skip_instances)
 
-        # Sanity check. Saved and terminated instances must be a
-        # proper subset of picked instances. Otherwise refuse to do
-        # anything. OTOH, this should actually not happen at
-        # all. Probably an assert would be more suitable.
-        if (len(set(save_instances) - set(picked_instances)) > 0 or
-            len(set(terminate_instances) - set(picked_instances)) > 0):
-            self.log_entry('There are instances marked for saving or termination that do not belong to this project, aborting freezing', type='error')
-            return
+        # Sanity check. Should never happen, but .. this is the time
+        # to be paranoid, terminating instances that shouldn't be
+        # terminated is a bad thing.
+        assert(len(picked_instances -
+                   (save_instances |
+                    terminate_instances |
+                    skip_instances)) == 0,
+               "some instances are not categorized at all")
+
+        assert(len(save_instances & terminate_instances) == 0,
+               "some instances are marked for both termination and saving")
+
+        assert(len(skip_instances & terminate_instances) == 0,
+               "some instances are marked for both termination and skipping")
 
         started = timezone.now()
+
+        self.state = 'freezing'
+        self.save()
 
         for instance in terminate_instances:
             self.log_entry('Terminating instance {0}'.format(instance))
@@ -473,9 +490,15 @@ class Project(BaseModel):
             self.log_entry('Freezing instance {0}'.format(instance))
             aws.freeze_instance(instance)
 
+        # TODO: EIP information storage
+
+        self.state = 'frozen'
+        self.save()
+
         elapsed = timezone.now() - started
 
-        self.log_entry('Terminated %d instances, froze %d instances in %.2f seconds' % (
+        self.log_entry('Froze project, terminated %d instances, '
+                       'stopped %d instances in %.2f seconds' % (
                 len(terminate_instances),
                 len(save_instances),
                 elapsed.seconds + elapsed.microseconds / 1e6))
@@ -484,21 +507,34 @@ class Project(BaseModel):
         if self.state != 'frozen':
             return
 
+        self.log_entry('Thawing project')
+
         self.log.debug("thaw: self=%r", self)
 
-        picked_instances = self.picked_instances
-        save_instances = self.saved_instances
-        bonker_instances = set(picked_instances) - set(save_instances)
+        # Don't thaw instances that are actually running. User might
+        # have added those manuall to the environment after freeze.
+        saved_instances = [i for i in self.saved_instances if i.state == 'stopped']
 
-        self.log.debug("freeze: self=%r picked_instances=%r "
-                       "save_instances=%r bonker_instances=%r",
-                       self, picked_instances, save_instances,
-                       bonker_instances)
+        self.log.debug("thaw: self=%r saved_instances=%r",
+                       self, saved_instances)
 
-        if bonker_instances:
-            self.log_entry('Got bonker instances when thawing',
-                           details="\n".join(bonker_instances))
+        started = timezone.now()
 
+        self.state = 'thawing'
+        self.save()
+
+        for instance in saved_instances:
+            self.log_entry('Thawing instance {0}'.format(instance))
+            aws.thaw_instance(instance)
+
+        self.state = 'running'
+        self.save()
+
+        elapsed = timezone.now() - started
+
+        self.log_entry('Thawed project, started %d instances in %.2f seconds' % (
+                len(saved_instances),
+                elapsed.seconds + elapsed.microseconds / 1e6))
 
     class Meta:
         permissions = (

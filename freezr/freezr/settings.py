@@ -110,7 +110,7 @@ if not TESTING:
         'version': 1,
         'formatters': {
             'simple': {
-                'format': '%(levelname)s %(message)s'
+                'format': '%(levelname)s %(name)s %(message)s'
                 }
             },
         'handlers': {

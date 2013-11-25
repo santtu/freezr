@@ -3,6 +3,8 @@ import boto.ec2
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 import freezr.util as util
 
+TERMINAL_STATES = ('shutting-down', 'terminated')
+
 class AwsInterface(util.Logger):
     """This is the interface to AWS.
 
@@ -15,17 +17,47 @@ class AwsInterface(util.Logger):
     def __init__(self, account):
         super(AwsInterface, self).__init__()
         self.account = account
+        self.conns = {}
+
+    def disconnect(self):
+        self.conns = {}
 
     def connect_ec2(self, region):
-        conn = boto.ec2.connect_to_region(
+        if region in self.conns:
+            return self.conns[region]
+
+        self.conns[region] = boto.ec2.connect_to_region(
             region,
             aws_access_key_id=self.account.access_key,
             aws_secret_access_key=self.account.secret_key)
 
         self.log.debug("Connected to region %s on account %s: %r",
-                       region, self.account, conn)
+                       region, self.account, self.conns[region])
 
-        return conn
+        return self.conns[region]
+
+    def refresh_instance(self, instance):
+        """Refreshes information on the given instance."""
+        conn = self.connect_ec2(instance.region)
+
+        for instance_data in conn.get_only_instances(instance_ids=[instance.instance_id]):
+            assert instance_data.id == instance.instance_id
+            if instance_data.state not in TERMINAL_STATES:
+                self.update_instance_record(instance, instance_data)
+                instance.save()
+                return
+
+        # Fall through here if instance doesn't exist, or it is or is
+        # going to be terminated.
+
+        self.log.debug('Instance %s gone away, removing', instance)
+        instance.delete()
+
+    def update_instance_record(self, record, instance):
+        record.state = instance.state
+        record.vpc_id = instance.vpc_id
+        record.store = instance.root_device_type
+        record.type = instance.instance_type
 
     def refresh_region(self, account, region):
         """Refreshes given `account` information on `region`. Returns
@@ -60,7 +92,7 @@ class AwsInterface(util.Logger):
             # These will be skipped in our counts completely. These
             # will also get removed since they are not put into seen_instances
             # set.
-            if instance.state in ('shutting-down', 'terminated'):
+            if instance.state in TERMINAL_STATES:
                 continue
 
             try:
@@ -82,10 +114,7 @@ class AwsInterface(util.Logger):
             # been dead for 50 hours and new instances with the same
             # id could have gotten around (in the same account and
             # region).
-            record.state = instance.state
-            record.vpc_id = instance.vpc_id
-            record.store = instance.root_device_type
-            record.type = instance.instance_type
+            self.update_instance_record(record, instance)
 
             seen_instances.add(record)
             record.save()
@@ -145,7 +174,10 @@ class AwsInterface(util.Logger):
         the instance metadata. We'll leave it lingering so humans can
         also see that result from AWS console, if needed."""
 
-        self.log.debug("terminate_instance: %s", instance)
+        conn = self.connect_ec2(instance.region)
+        result = conn.terminate_instances(instance_ids=[instance.instance_id])
+
+        self.log.debug("terminate_instance: %s => %s", instance, result)
 
     def freeze_instance(self, instance):
         """Freeze the given instance."""
@@ -156,11 +188,21 @@ class AwsInterface(util.Logger):
             # TODO: add suitable exception
             return
 
+        conn = self.connect_ec2(instance.region)
+        result = conn.stop_instances(instance_ids=[instance.instance_id])
+
+        self.log.debug("freeze_instance: %s => %s", instance, result)
+
+
     def thaw_instance(self, instance):
         """Thaw the given instance."""
         self.log.debug("thaw_instance: %s, state %s",
                        instance, instance.state)
 
         if instance.state != 'stopped':
-            # TODO: add suitable exception
             return
+
+        conn = self.connect_ec2(instance.region)
+        result = conn.start_instances(instance_ids=[instance.instance_id])
+
+        self.log.debug("thaw_instance: %s => %s", instance, result)

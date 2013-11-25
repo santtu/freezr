@@ -2,6 +2,11 @@
 top_dir=$(dirname $0)
 cfn=$top_dir/testnetworks.cfn.json
 cfn_temp=$top_dir/testnetworks.cfn.filtered.json
+
+if [ "$1" = "stop" ]; then
+    stop=true
+    shift
+fi
 stack=${1-freezr-test}
 egrep -v '^[ 	]*//' $cfn >$cfn_temp
 
@@ -9,6 +14,14 @@ function running {
     aws cloudformation describe-stacks --stack-name $stack >/dev/null 2>&1 </dev/null
     return $?
 }
+
+if [ -n "$stop" ]; then
+    if running; then
+	aws cloudformation delete-stack --stack-name $stack
+    fi
+
+    exit 0
+fi
 
 if ! aws cloudformation validate-template --template-body file://$cfn_temp; then
     echo "ERROR: Template validation failed, processed file in $(basename $cfn_temp) file." >&2

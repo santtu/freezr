@@ -8,7 +8,7 @@
     state: init, pick_filter: 'region = region', save_filter: 'tag[Name]', terminate_filter: ''}
   model: freezr.project
   pk: 1
-- fields: {access_key: 'AKIAJ4RMBIMLPNI62AYQ', active: true, domain: 1, name: 'Personal account', secret_key: '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'}
+- fields: {access_key: 'AKIAJ4RMBIMLPNI62AYQ', active: true, domain: 1, name: 'Personal account (read-only access)', secret_key: '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'}
   model: freezr.account
   pk: 2
 - fields: {account: 2, description: '', name: 'Test: Public',
