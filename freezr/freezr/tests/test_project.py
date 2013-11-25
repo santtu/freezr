@@ -6,6 +6,11 @@ import freezr.tests.util as util
 
 log = logging.getLogger(__file__)
 
+def arg(lst, n):
+    return [e[n] for e in lst]
+
+def ids(lst):
+    return [i.instance_id for i in lst]
 
 class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
     def setUp(self):
@@ -15,7 +20,7 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
                                access_key="1234",
                                secret_key="abcd")
         self.account.save()
-        self.project = self.account.new_project(name="test")
+        self.project = self.account.new_project(name="test", state='running')
         self.id = 10000
         self.instances = []
 
@@ -72,7 +77,7 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
                 self.instance(tag_Name='hardy')
                 ])
 
-    def createSet2(self):
+    def createSet2(self, override={}):
         """Create instance set 2 -- 10 instances, where
 
         3 run in us-east-1: 1 stopped in us-east-1, 2 running tagged
@@ -118,6 +123,8 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
             ]
 
         for data in sets:
+            data = {k: v for k, v in data.iteritems()}
+            data.update(override)
             self.instances.append(self.instance(**data))
 
     def case_with_filters(self, *filters):
@@ -209,27 +216,118 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
             (('true', 10), ('tag[staging] or tag[devtest]', 5), ('tag[staging] or tag[devtest] or true', 5)),
             )
 
-
     def testFreeze(self):
+        self.createSet2()
         aws = util.AwsMock()
 
-        self.createSet2()
+        def assertState(state):
+            self.assertEqual(Project.objects.get(pk=self.project.id).state,
+                             state)
+
+        def reset():
+            self.project.state = 'running'
+            self.project.save()
+            aws.reset()
+
+        # ------
+
+        # With nothing to save or terminate, no calls.
         with self.instance_filters('region = none'):
             self.project.freeze(aws=aws)
 
+        assertState('frozen')
         self.assertEqual(aws.calls, [])
 
-        # what is needed:
-        #
-        # attach project mate
-        # count ops
-        # compare expected with resulting instance state
-        # restore project state back to running
-        #
+        # With only saved instances, there are two staging instances.
+        reset()
+        assertState('running')
+        with self.instance_filters('tag[staging]', 'true'):
+            self.project.freeze(aws=aws)
 
-#        self.fail('not yet implemented')
+        assertState('frozen')
+        self.assertEqual(len(aws.calls), 2)
+        self.assertEqualSet(ids(arg(aws.calls, 1)), ('i-000001', 'i-000002'))
+
+        # Verify we can save all.
+        reset()
+        assertState('running')
+        with self.instance_filters('true', 'true'):
+            self.project.freeze(aws=aws)
+
+        assertState('frozen')
+        self.assertEqual(len(aws.calls), 10)
+        self.assertEqualSet(ids(arg(aws.calls, 1)), [i.instance_id for i in Instance.objects.all()])
+
+        # Save staging, terminate devtest, ignore production.
+        reset()
+        assertState('running')
+        with self.instance_filters('true', 'tag[staging]', 'tag[devtest]'):
+            self.project.freeze(aws=aws)
+
+        assertState('frozen')
+        self.assertEqual(len(aws.calls), 5)
+
+        self.assertEqual({t[1].instance_id: t[0] for t in aws.calls},
+                         {u'i-000001': 'freeze_instance',
+                          u'i-000002': 'freeze_instance',
+                          u'i-000003': 'terminate_instance',
+                          u'i-000004': 'terminate_instance',
+                          u'i-000005': 'terminate_instance'})
 
     def testThaw(self):
-        # see freeze test case
-#        self.fail('not yet implemented')'
-        pass
+        self.createSet2(override={'state': 'stopped'})
+        aws = util.AwsMock()
+
+        def assertState(state):
+            self.assertEqual(Project.objects.get(pk=self.project.id).state,
+                             state)
+
+        def reset():
+            self.project.state = 'frozen'
+            self.project.save()
+            aws.reset()
+
+        # ------
+
+        reset()
+        assertState('frozen')
+
+        # With nothing to thaw, no calls
+        with self.instance_filters('region = none'):
+            self.project.thaw(aws=aws)
+
+        assertState('running')
+        self.assertEqual(aws.calls, [])
+
+        reset()
+        assertState('frozen')
+        with self.instance_filters('tag[staging]', 'true'):
+            self.project.thaw(aws=aws)
+
+        assertState('running')
+        self.assertEqual(len(aws.calls), 2)
+        self.assertEqualSet(ids(arg(aws.calls, 1)), ('i-000001', 'i-000002'))
+
+        # Verify we can save all.
+        reset()
+        with self.instance_filters('true', 'true'):
+            self.project.thaw(aws=aws)
+
+        assertState('running')
+        self.assertEqual(len(aws.calls), 10)
+        self.assertEqualSet(ids(arg(aws.calls, 1)), [i.instance_id for i in Instance.objects.all()])
+
+        # Save staging, terminate devtest, ignore production.
+        reset()
+        with self.instance_filters('true', 'tag[staging] or tag[devtest]'):
+            self.project.thaw(aws=aws)
+
+        assertState('running')
+        self.assertEqual(len(aws.calls), 5)
+
+        self.assertEqual({t[1].instance_id: t[0] for t in aws.calls},
+                         {u'i-000001': 'thaw_instance',
+                          u'i-000002': 'thaw_instance',
+                          u'i-000003': 'thaw_instance',
+                          u'i-000004': 'thaw_instance',
+                          u'i-000005': 'thaw_instance'})

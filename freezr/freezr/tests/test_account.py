@@ -43,8 +43,8 @@ class TestAccount(FreezrTestCaseMixin, test.TestCase):
         time.sleep(0.01) # make sure some time passes, we're comparing timestamps
         self.account.refresh(aws=self.aws)
         self.assertEqual(6, len(self.aws.calls))
-        self.assertTrue(all([c[0] == self.account for c in self.aws.calls]))
-        self.assertEqual(set([u'a', u'b', u'c', u'd', u'e', u'f']), set([c[1] for c in self.aws.calls]))
+        self.assertTrue(all([c[1] == self.account for c in self.aws.calls]))
+        self.assertEqual(set([u'a', u'b', u'c', u'd', u'e', u'f']), set([c[2] for c in self.aws.calls]))
         self.assertNotEqual(old, self.account.updated)
 
         Project(name="Test project 2", account=self.account, _regions="").save()

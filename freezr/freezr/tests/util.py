@@ -7,20 +7,31 @@ class AwsMock(object):
         self.args = args
         self.kwargs = kwargs
         self.calls = []
-        self.fail = False
         self.result = (0, 0, 0)
 
         log.debug('AwsMock.__init__: args=%r kwargs=%r', args, kwargs)
+
+    def reset(self):
+        self.calls = []
 
     def refresh_region(self, account, region):
         log.debug('AwsMock.refresh_region: account=%r region=%r',
                   account, region)
 
-        if self.fail:
-            raise Exception('intentional failure')
-
-        self.calls.append((account, region))
+        self.calls.append(('refresh_region', account, region))
         return self.result
+
+    def freeze_instance(self, instance):
+        log.debug('AwsMock.freeze_instance: instance=%r', instance)
+        self.calls.append(('freeze_instance', instance))
+
+    def thaw_instance(self, instance):
+        log.debug('AwsMock.thaw_instance: instance=%r', instance)
+        self.calls.append(('thaw_instance', instance))
+
+    def terminate_instance(self, instance):
+        log.debug('AwsMock.terminate_instance: instance=%r', instance)
+        self.calls.append(('terminate_instance', instance))
 
 class AwsMockFactory(object):
     def __init__(self):
@@ -63,3 +74,21 @@ class FreezrTestCaseMixin(object):
             t.save()
 
         return i
+
+    def assertEqualSet(self, list1, list2):
+        self.assertSetEqual(set(list1), set(list2))
+
+def with_aws(aws):
+    class inner(object):
+        def __init__(self, aws):
+            self.aws = aws
+            self.old_aws = None
+
+        def __enter__(self):
+            import freezr.aws
+            self.old_aws = freezr.aws.AwsInterface
+            freezr.aws.AwsInterface = self.aws
+
+        def __exit__(self, type, value, traceback):
+            import freezr.aws
+            freezr.aws.AwsInterface = self.old_aws
