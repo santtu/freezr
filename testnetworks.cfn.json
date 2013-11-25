@@ -1,0 +1,362 @@
+// TODO: EBS vs. instance-store missing
+// TODO: NAT instance setup
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "freezr testing environments",
+
+    // ------------------------------------------------------------------
+    // Parameter definitions
+    "Parameters": {
+	"KeyName": {
+	    "Description": "Name of the EC2 KeyPair for SSH access",
+	    "Type": "String"
+	},
+	"InstanceType": {
+	    "Description": "EC2 instance type",
+	    "Type": "String",
+	    "Default": "t1.micro",
+	    "AllowedValues": [ "t1.micro",
+			       "m1.small",
+			       "m1.medium",
+			       "m1.large",
+			       "m1.xlarge",
+			       "m2.xlarge",
+			       "m2.2xlarge",
+			       "m2.4xlarge",
+			       "m3.xlarge",
+			       "m3.2xlarge",
+			       "c1.medium",
+			       "c1.xlarge",
+			       "cc1.4xlarge",
+			       "cc2.8xlarge",
+			       "cg1.4xlarge"],
+	    "ConstraintDescription": "must be a valid EC2 instance type."
+	}
+    },
+
+    // ------------------------------------------------------------------
+    // Mappings needed for deploymentsa
+
+    "Mappings": {
+	"AWSInstanceType2Arch": {
+	    "t1.micro"   : { "Arch": "64" },
+	    "m1.small"   : { "Arch": "64" },
+	    "m1.medium"  : { "Arch": "64" },
+	    "m1.large"   : { "Arch": "64" },
+	    "m1.xlarge"  : { "Arch": "64" },
+	    "m2.xlarge"  : { "Arch": "64" },
+	    "m2.2xlarge" : { "Arch": "64" },
+	    "m2.4xlarge" : { "Arch": "64" },
+	    "m3.xlarge"  : { "Arch": "64" },
+	    "m3.2xlarge" : { "Arch": "64" },
+	    "c1.medium"  : { "Arch": "64" },
+	    "c1.xlarge"  : { "Arch": "64" },
+	    "cc1.4xlarge": { "Arch": "64HVM" },
+	    "cc2.8xlarge": { "Arch": "64HVM" },
+	    "cg1.4xlarge": { "Arch": "64HVM" }
+	},
+
+	"AWSRegionArch2AMI": {
+	    "us-east-1"     : { "32": "ami-31814f58", "64": "ami-1b814f72", "64HVM": "ami-0da96764" },
+	    "us-west-2"     : { "32": "ami-38fe7308", "64": "ami-30fe7300", "64HVM": "NOT_YET_SUPPORTED" },
+	    "us-west-1"     : { "32": "ami-11d68a54", "64": "ami-1bd68a5e", "64HVM": "NOT_YET_SUPPORTED" },
+	    "eu-west-1"     : { "32": "ami-973b06e3", "64": "ami-953b06e1", "64HVM": "NOT_YET_SUPPORTED" },
+	    "ap-southeast-1": { "32": "ami-b4b0cae6", "64": "ami-beb0caec", "64HVM": "NOT_YET_SUPPORTED" },
+	    "ap-southeast-2": { "32": "ami-b3990e89", "64": "ami-bd990e87", "64HVM": "NOT_YET_SUPPORTED" },
+	    "ap-northeast-1": { "32": "ami-0644f007", "64": "ami-0a44f00b", "64HVM": "NOT_YET_SUPPORTED" },
+	    "sa-east-1"     : { "32": "ami-3e3be423", "64": "ami-3c3be421", "64HVM": "NOT_YET_SUPPORTED" }
+	}
+    },
+
+    "Resources": {
+	// --------------------------------------------------------------
+	// All instances t1.micro instances.
+	//
+	// "Public" case:
+	//
+	// - 1 EBS instance, Name=master, role=ci
+	// - 1 instance-store, Name=slave01, role=slave
+	// - 1 EIP attached to master instance
+	// - 1 sg which allows 80 to master
+	// - 1 sg which allows 22 to both
+	// - 1 sg which allows communication to slaves from master on
+	//   all ports and protocols (but not vice versa)
+	// - all have tag service = public
+	//
+	// "VPC" case:
+	//
+	// - 1 VPC
+	// - 2 subnets, one with IGW, with master and nat instance in
+	//   it, another with routing to NAT instance
+	// - 2 EIPs, attached to NAT instance and master
+	// - 1 NAT instance with EIP, Name=nat, role=infra
+	// - 1 EBS instance, Name=master, role=ci
+	// - 2 instance-store instances (spot?), Name=slave-01,
+	//   slave-02, role=slave
+
+	// --------------------------------------------------------------
+	// Public case definitions:
+	//
+	// All resources prefixed with pub*
+
+	// Security groups
+	"pubMasterSg": {
+	    "Type": "AWS::EC2::SecurityGroup",
+	    "Properties": {
+		"GroupDescription": "Build master",
+		"SecurityGroupIngress": [
+		    { "IpProtocol": "tcp", "FromPort": "80", "ToPort": "80", "CidrIp": "0.0.0.0/0" },
+		    { "IpProtocol": "tcp", "FromPort": "22", "ToPort": "22", "CidrIp": "0.0.0.0/0" }
+		]
+	    }
+	},
+	"pubSlaveSg": {
+	    "Type": "AWS::EC2::SecurityGroup",
+	    "Properties": {
+		"GroupDescription": "Build slaves",
+		"SecurityGroupIngress": [
+		    { "IpProtocol": "tcp", "FromPort": "22", "ToPort": "22", "CidrIp": "0.0.0.0/0" },
+		    { "IpProtocol": "tcp", "FromPort": "1", "ToPort": "65535", "SourceSecurityGroupName": { "Ref": "pubMasterSg" } },
+		    { "IpProtocol": "udp", "FromPort": "1", "ToPort": "65535", "SourceSecurityGroupName": { "Ref": "pubMasterSg" } },
+		    { "IpProtocol": "icmp", "FromPort": "-1", "ToPort": "-1", "SourceSecurityGroupName": { "Ref": "pubMasterSg" } }
+		]
+	    }
+	},
+
+	// Instances
+	"pubMaster": {
+	    "Type": "AWS::EC2::Instance",
+	    "Properties": {
+		"ImageId": { "Fn::FindInMap": [ "AWSRegionArch2AMI", { "Ref": "AWS::Region" }, { "Fn::FindInMap": [ "AWSInstanceType2Arch", { "Ref": "InstanceType" }, "Arch" ] } ] },
+		"InstanceType": { "Ref": "InstanceType" },
+		"SecurityGroups": [ { "Ref": "pubMasterSg" } ],
+		"KeyName": { "Ref": "KeyName" },
+		"Tags": [ { "Key": "Name", "Value": "master" },
+			  { "Key": "freezrtest", "Value": "true" },
+			  { "Key": "service", "Value": "public" },
+			  { "Key": "role", "Value": "ci" } ]
+	    }
+	},
+
+	"pubSlave01": {
+	    "Type": "AWS::EC2::Instance",
+	    "Properties": {
+		"ImageId": { "Fn::FindInMap": [ "AWSRegionArch2AMI", { "Ref": "AWS::Region" }, { "Fn::FindInMap": [ "AWSInstanceType2Arch", { "Ref": "InstanceType" }, "Arch" ] } ] },
+		"InstanceType": { "Ref": "InstanceType" },
+		"SecurityGroups": [ { "Ref": "pubSlaveSg" } ],
+		"KeyName": { "Ref": "KeyName" },
+		"Tags": [ { "Key": "Name", "Value": "slave01" },
+			  { "Key": "freezrtest", "Value": "true" },
+			  { "Key": "service", "Value": "public" },
+			  { "Key": "role", "Value": "slave" } ]
+	    }
+	},
+
+	"pubMasterEIP": {
+	    "Type": "AWS::EC2::EIP",
+	    "Properties": {
+		"InstanceId": { "Ref": "pubMaster" }
+	    }
+	},
+
+	// --------------------------------------------------------------
+	// VPC case definitions:
+	//
+	// All resources prefixed with vpc*
+
+	"vpcVPC": {
+	    "Type": "AWS::EC2::VPC",
+	    "Properties": {
+		"CidrBlock": "10.0.0.0/16"
+	    }
+	},
+
+	"vpcPublicSubnet": {
+	    "Type": "AWS::EC2::Subnet",
+	    "Properties": {
+		"CidrBlock": "10.0.0.0/24",
+		"VpcId": { "Ref": "vpcVPC" }
+	    }
+	},
+
+	"vpcPrivateSubnet": {
+	    "Type": "AWS::EC2::Subnet",
+	    "Properties": {
+		"CidrBlock": "10.0.1.0/24",
+		"VpcId": { "Ref": "vpcVPC" }
+	    }
+	},
+
+	"vpcPublicRouteTable": {
+	    "Type": "AWS::EC2::RouteTable",
+	    "Properties": {
+		"VpcId": { "Ref": "vpcVPC" }
+	    }
+	},
+
+	"vpcPrivateRouteTable": {
+	    "Type": "AWS::EC2::RouteTable",
+	    "Properties": {
+		"VpcId": { "Ref": "vpcVPC" }
+	    }
+	},
+
+	"vpcPublicRouteTableAssociation1": {
+	    "Type": "AWS::EC2::SubnetRouteTableAssociation",
+	    "Properties": {
+		"RouteTableId": { "Ref": "vpcPublicRouteTable" },
+		"SubnetId": { "Ref": "vpcPublicSubnet" }
+	    }
+	},
+
+	"vpcPrivateRouteTableAssociation1": {
+	    "Type": "AWS::EC2::SubnetRouteTableAssociation",
+	    "Properties": {
+		"RouteTableId": { "Ref": "vpcPrivateRouteTable" },
+		"SubnetId": { "Ref": "vpcPrivateSubnet" }
+	    }
+	},
+
+	"vpcPublicRoute1": {
+	    "Type": "AWS::EC2::Route",
+	    "Properties": {
+		"DestinationCidrBlock": "0.0.0.0/0",
+		"GatewayId": { "Ref": "vpcIgw" },
+		"RouteTableId": { "Ref": "vpcPublicRouteTable" }
+	    }
+	},
+
+	"vpcPrivateRoute1": {
+	    "Type": "AWS::EC2::Route",
+	    "Properties": {
+		"DestinationCidrBlock": "0.0.0.0/0",
+		"InstanceId": { "Ref": "vpcNatGateway" },
+		"RouteTableId": { "Ref": "vpcPrivateRouteTable" }
+	    }
+	},
+
+	"vpcNatGatewaySg": {
+	    "Type": "AWS::EC2::SecurityGroup",
+	    "Properties": {
+		"GroupDescription": "NAT gateway",
+		"SecurityGroupIngress": [
+		    { "IpProtocol": "tcp", "FromPort": "80", "ToPort": "80", "CidrIp": "0.0.0.0/0" },
+		    { "IpProtocol": "tcp", "FromPort": "22", "ToPort": "22", "CidrIp": "0.0.0.0/0" },
+		    { "IpProtocol": "-1", "CidrIp": "10.0.0.0/16" }
+		],
+		"VpcId": { "Ref": "vpcVPC" }
+	    }
+	},
+	"vpcMasterSg": {
+	    "Type": "AWS::EC2::SecurityGroup",
+	    "Properties": {
+		"GroupDescription": "Build master",
+		"SecurityGroupIngress": [
+		    { "IpProtocol": "tcp", "FromPort": "80", "ToPort": "80", "CidrIp": "0.0.0.0/0" },
+		    { "IpProtocol": "tcp", "FromPort": "22", "ToPort": "22", "CidrIp": "0.0.0.0/0" }
+		],
+		"VpcId": { "Ref": "vpcVPC" }
+	    }
+	},
+	"vpcSlaveSg": {
+	    "Type": "AWS::EC2::SecurityGroup",
+	    "Properties": {
+		"GroupDescription": "Build slaves",
+		"SecurityGroupIngress": [
+		    { "IpProtocol": "-1", "SourceSecurityGroupId": { "Ref": "vpcMasterSg" } }
+		],
+		"VpcId": { "Ref": "vpcVPC" }
+	    }
+	},
+
+	// Instances
+	"vpcNatGateway": {
+	    "Type": "AWS::EC2::Instance",
+	    "Properties": {
+		"ImageId": { "Fn::FindInMap": [ "AWSRegionArch2AMI", { "Ref": "AWS::Region" }, { "Fn::FindInMap": [ "AWSInstanceType2Arch", { "Ref": "InstanceType" }, "Arch" ] } ] },
+		"InstanceType": { "Ref": "InstanceType" },
+		"SecurityGroupIds": [ { "Ref": "vpcNatGatewaySg" } ],
+		"KeyName": { "Ref": "KeyName" },
+		"Tags": [ { "Key": "Name", "Value": "nat" },
+			  { "Key": "freezrtest", "Value": "true" },
+			  { "Key": "service", "Value": "vpc" },
+			  { "Key": "role", "Value": "infra" } ],
+		"SubnetId": { "Ref": "vpcPublicSubnet" },
+		"SourceDestCheck": false
+	    }
+	},
+
+	"vpcMaster": {
+	    "Type": "AWS::EC2::Instance",
+	    "Properties": {
+		"ImageId": { "Fn::FindInMap": [ "AWSRegionArch2AMI", { "Ref": "AWS::Region" }, { "Fn::FindInMap": [ "AWSInstanceType2Arch", { "Ref": "InstanceType" }, "Arch" ] } ] },
+		"InstanceType": { "Ref": "InstanceType" },
+		"SecurityGroupIds": [ { "Ref": "vpcMasterSg" } ],
+		"KeyName": { "Ref": "KeyName" },
+		"Tags": [ { "Key": "Name", "Value": "master" },
+			  { "Key": "freezrtest", "Value": "true" },
+			  { "Key": "service", "Value": "vpc" },
+			  { "Key": "role", "Value": "ci" } ],
+		"SubnetId": { "Ref": "vpcPublicSubnet" }
+	    }
+	},
+
+	"vpcSlave01": {
+	    "Type": "AWS::EC2::Instance",
+	    "Properties": {
+		"ImageId": { "Fn::FindInMap": [ "AWSRegionArch2AMI", { "Ref": "AWS::Region" }, { "Fn::FindInMap": [ "AWSInstanceType2Arch", { "Ref": "InstanceType" }, "Arch" ] } ] },
+		"InstanceType": { "Ref": "InstanceType" },
+		"SecurityGroupIds": [ { "Ref": "vpcSlaveSg" } ],
+		"KeyName": { "Ref": "KeyName" },
+		"Tags": [ { "Key": "Name", "Value": "slave01" },
+			  { "Key": "freezrtest", "Value": "true" },
+			  { "Key": "service", "Value": "vpc" },
+			  { "Key": "role", "Value": "slave" } ],
+		"SubnetId": { "Ref": "vpcPrivateSubnet" }
+	    }
+	},
+
+	"vpcSlave02": {
+	    "Type": "AWS::EC2::Instance",
+	    "Properties": {
+		"ImageId": { "Fn::FindInMap": [ "AWSRegionArch2AMI", { "Ref": "AWS::Region" }, { "Fn::FindInMap": [ "AWSInstanceType2Arch", { "Ref": "InstanceType" }, "Arch" ] } ] },
+		"InstanceType": { "Ref": "InstanceType" },
+		"SecurityGroupIds": [ { "Ref": "vpcSlaveSg" } ],
+		"KeyName": { "Ref": "KeyName" },
+		"Tags": [ { "Key": "Name", "Value": "slave02" },
+			  { "Key": "freezrtest", "Value": "true" },
+			  { "Key": "service", "Value": "vpc" },
+			  { "Key": "role", "Value": "slave" } ],
+		"SubnetId": { "Ref": "vpcPrivateSubnet" }
+	    }
+	},
+
+	"vpcNatGatewayEIP": {
+	    "Type": "AWS::EC2::EIP",
+	    "Properties": {
+		"InstanceId": { "Ref": "vpcNatGateway" },
+		"Domain": "vpc"
+	    }
+	},
+
+	"vpcMasterEIP": {
+	    "Type": "AWS::EC2::EIP",
+	    "Properties": {
+		"InstanceId": { "Ref": "vpcMaster" },
+		"Domain": "vpc"
+	    }
+	},
+
+	"vpcIgw": {
+	    "Type": "AWS::EC2::InternetGateway"
+	},
+
+	"vpcAttachIgw": {
+	    "Type": "AWS::EC2::VPCGatewayAttachment",
+	    "Properties": {
+		"VpcId" : { "Ref": "vpcVPC" },
+		"InternetGatewayId": { "Ref": "vpcIgw" }
+	    }
+	}
+    }
+}

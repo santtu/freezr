@@ -7,7 +7,6 @@ from django.contrib import auth
 from django.utils import timezone
 import re
 import freezr.util as util
-import freezr.aws as aws
 import freezr.filter as filter
 
 VALID_INSTANCE_RE = re.compile(r'^i-[0-9a-f]+$')
@@ -160,14 +159,7 @@ class Account(BaseModel):
     def __unicode__(self):
         return self.name + "/" + self.access_key
 
-    # aws is argument here with a default so we can inject mock during
-    # testing
-    def __init__(self, *args, **kwargs):
-        mate = kwargs.pop('mate', None)
-        super(Account, self).__init__(*args, **kwargs)
-        self.mate = mate
-
-    def refresh(self, regions=None):
+    def refresh(self, aws, regions=None):
         """Refresh this account contents, updating list of tags,
         instances and EIPs in this account in the given `regions`. If
         `regions` is not specified, will go through `self.regions`."""
@@ -177,38 +169,42 @@ class Account(BaseModel):
 
         self.log.debug("refresh: %s, regions=%r", self, regions)
 
-        if not self.mate:
-            self.mate = aws.Account(self)
-
         total, added, deleted = 0, 0, 0
         started = timezone.now()
 
         for region in regions:
             try:
                 with transaction.atomic():
-                    (t, a, d) = self.mate.refresh_region(self, region)
+                    (t, a, d) = aws.refresh_region(self, region)
                     self.updated = timezone.now()
                     self.save()
-                    self.log.debug('%s: Done refresh with mate %r, updated %s, t/a/d %d/%d/%d', self, self.mate, self.updated, t, a, d)
+                    self.log.debug('%s: Done refresh with %r, '
+                                   'updated %s, t/a/d %d/%d/%d',
+                                   self, aws, self.updated, t, a, d)
                     total, added, deleted = total + t, added + a, deleted + d
             except IntegrityError:
-                self.log.exception("Error while updating account %s in region %s",
+                self.log.exception("Error while updating account %s in "
+                                   "region %s",
                                    self, region)
 
-            # TODO: catch other known exceptions from mate. As well in
-            # there, convert those into known exceptions.
+            # TODO: catch other known exceptions. As well in there,
+            # convert those into known exceptions.
 
         elapsed = timezone.now() - started
 
-        self.log_entry('Refreshed %d regions in %.2f seconds, total %d / added %d / deleted %d instances' % (
-                len(regions), elapsed.seconds + elapsed.microseconds / 1e6, total, added, deleted))
+        self.log_entry('Refreshed %d regions in %.2f seconds, '
+                       'total %d / added %d / deleted %d instances' % (
+                len(regions),
+                elapsed.seconds + elapsed.microseconds / 1e6,
+                total, added, deleted))
 
         # Go through projects that are 'init' state and see if they
         # have any picked or saved instances --- then we move them to
         # "running" state.
         for project in self.projects.filter(state='init').all():
             if project.picked_instances or project.saved_instances:
-                project.log_entry('Moving {0} from initializing to running state'.format(project))
+                project.log_entry('Moving {0} from initializing to '
+                                  'running state'.format(project))
                 project.state = 'running'
                 project.save()
 
@@ -271,7 +267,8 @@ class Instance(BaseModel):
     # Instance id. Note we don't make this primary_key (use the
     # integer id field instead) since instance ids are *not*
     # guaranteed to be unique over multiple regions.
-    instance_id = models.CharField(max_length=30, validators=[validate_instance_id])
+    instance_id = models.CharField(max_length=30,
+                                   validators=[validate_instance_id])
 
     # Instance type
     type = models.CharField(max_length=30)
@@ -306,6 +303,7 @@ class Instance(BaseModel):
             'instance': self.instance_id,
             'type': self.type,
             'storage': self.store,
+            'vpc': self.vpc_id,
             'tags': {tag.key: tag.value for tag in self.tags.all()},
             }
 
@@ -343,7 +341,8 @@ class Project(BaseModel):
     name = models.CharField(max_length=255)
 
     # State of this project
-    state = models.CharField(max_length=30, choices=PROJECT_STATES_CHOICES, default='init')
+    state = models.CharField(max_length=30, choices=PROJECT_STATES_CHOICES,
+                             default='init')
 
     # Always in a domain, utilizing one account (but multiple projects
     # may use the same account). Note that the domain is implicit, via
@@ -367,10 +366,13 @@ class Project(BaseModel):
     # Save filter
     save_filter = models.TextField(blank=True, null=True)
 
+    # Terminate filter
+    terminate_filter = models.TextField(blank=True, null=True)
+
     def __unicode__(self):
         return unicode(self.account) + "/" + self.name
 
-    def filter_instances(self, filter_text):
+    def filter_instances(self, filter_text, filter_pre=None):
         """Return a list of instances that match the `filter_text`
         filter pattern under the account of this project.
 
@@ -384,6 +386,10 @@ class Project(BaseModel):
             return []
 
         f = filter.Filter(filter_text)
+
+        if filter_pre:
+            f = filter.Filter(filter_pre).AND(f)
+
         picked = set()
 
         for instance in self.account.instances.all():
@@ -393,13 +399,27 @@ class Project(BaseModel):
 
         return list(picked)
 
+    # TODO: Think about caching some of these values internally, we
+    # probably hit DB repeatedly on same queries when determining
+    # different instance filter results.
+
     @property
     def picked_instances(self):
         return self.filter_instances(self.pick_filter)
 
     @property
     def saved_instances(self):
-        return self.filter_instances(self.save_filter)
+        return self.filter_instances(self.save_filter, self.pick_filter)
+
+    @property
+    def terminated_instances(self):
+        return self.filter_instances(self.terminate_filter, self.pick_filter)
+
+    @property
+    def skipped_instances(self):
+        return list(set(self.picked_instances)
+                    - set(self.saved_instances)
+                    - set(self.terminated_instances))
 
     @property
     def regions(self):
@@ -414,15 +434,66 @@ class Project(BaseModel):
     def _log_entry(self, l):
         l.project = self
 
-    def freeze(self):
+    def freeze(self, aws):
         if self.state != 'running':
             return
 
         self.log_entry('Starting to freeze project')
-        self.log.debug("freeze: self=%r", self)
 
-    def thaw(self):
+        picked_instances = self.picked_instances
+        save_instances = self.saved_instances
+        terminate_instances = self.terminated_instances
+
+        self.log.debug("freeze: self=%r picked_instances=%r "
+                       "save_instances=%r terminate_instances=%r",
+                       self, picked_instances, save_instances,
+                       terminate_instances)
+
+        # Sanity check. Saved and terminated instances must be a
+        # proper subset of picked instances. Otherwise refuse to do
+        # anything. OTOH, this should actually not happen at
+        # all. Probably an assert would be more suitable.
+        if (len(set(save_instances) - set(picked_instances)) > 0 or
+            len(set(terminate_instances) - set(picked_instances)) > 0):
+            self.log_entry('There are instances marked for saving or termination that do not belong to this project, aborting freezing', type='error')
+            return
+
+        started = timezone.now()
+
+        for instance in terminate_instances:
+            self.log_entry('Terminating instance {0}'.format(instance))
+            aws.terminate_instance(instance)
+
+        for instance in save_instances:
+            self.log_entry('Freezing instance {0}'.format(instance))
+            aws.freeze_instance(instance)
+
+        elapsed = timezone.now() - started
+
+        self.log_entry('Terminated %d instances, froze %d instances in %.2f seconds' % (
+                len(terminate_instances),
+                len(save_instances),
+                elapsed.seconds + elapsed.microseconds / 1e6))
+
+    def thaw(self, aws):
+        if self.state != 'frozen':
+            return
+
         self.log.debug("thaw: self=%r", self)
+
+        picked_instances = self.picked_instances
+        save_instances = self.saved_instances
+        bonker_instances = set(picked_instances) - set(save_instances)
+
+        self.log.debug("freeze: self=%r picked_instances=%r "
+                       "save_instances=%r bonker_instances=%r",
+                       self, picked_instances, save_instances,
+                       bonker_instances)
+
+        if bonker_instances:
+            self.log_entry('Got bonker instances when thawing',
+                           details="\n".join(bonker_instances))
+
 
     class Meta:
         permissions = (
@@ -461,14 +532,17 @@ class ProjectGroupRelation(BaseModel):
 
 class LogEntry(models.Model):
     # Entry type
-    type = models.CharField(max_length=10, default='info', choices=LOG_ENTRY_TYPES_CHOICES)
+    type = models.CharField(max_length=10, default='info',
+                            choices=LOG_ENTRY_TYPES_CHOICES)
 
     # Entry time
     time = models.DateTimeField(auto_now_add=True)
 
     # User who initiated the action, if applicable (may be null for
     # scheduled tasks, for example)
-    user = models.ForeignKey(auth.models.User, on_delete=models.SET_NULL, blank=True, null=True, related_name='+log_entries')
+    user = models.ForeignKey(auth.models.User,
+                             on_delete=models.SET_NULL, blank=True,
+                             null=True, related_name='+log_entries')
 
     # Main entry message text, should never be empty
     message = models.TextField()
@@ -486,13 +560,20 @@ class LogEntry(models.Model):
     # account or project. Only *ONE* of these should be set at any
     # point (OTOH, we don't enforce that at the model level) so that
     # the delete cascade works correctly.
-    domain = models.ForeignKey('Domain', blank=True, null=True, related_name="log_entries", on_delete=models.CASCADE)
-    account = models.ForeignKey('Account', blank=True, null=True, related_name="log_entries", on_delete=models.CASCADE)
-    project = models.ForeignKey('Project', blank=True, null=True, related_name="log_entries", on_delete=models.CASCADE)
+    domain = models.ForeignKey('Domain', blank=True, null=True,
+                               related_name="log_entries",
+                               on_delete=models.CASCADE)
+    account = models.ForeignKey('Account', blank=True, null=True,
+                                related_name="log_entries",
+                                on_delete=models.CASCADE)
+    project = models.ForeignKey('Project', blank=True, null=True,
+                                related_name="log_entries",
+                                on_delete=models.CASCADE)
 
     def __unicode__(self):
         return "{0} {1}: {2} ({3})".format(self.time, self.type, self.message,
-                                         self.domain or self.account or self.project)
+                                           (self.domain or self.account
+                                            or self.project))
 
     def set_object(self, obj):
         """Utility routine that tries to set `obj` to the correct slot,
@@ -504,3 +585,6 @@ class LogEntry(models.Model):
             self.account = obj
         elif isinstance(obj, Project):
             self.project = obj
+
+    class Meta:
+        verbose_name_plural = "log entries"

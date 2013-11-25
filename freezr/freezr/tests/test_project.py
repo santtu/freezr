@@ -17,6 +17,7 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
         self.account.save()
         self.project = self.account.new_project(name="test")
         self.id = 10000
+        self.instances = []
 
     def instance_filters(self, pick_filter, save_filter=None):
         class inner(object):
@@ -40,13 +41,21 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
         return inner(self.project, pick_filter, save_filter)
 
 
+    def deleteInstances(self):
+        for instance in self.instances:
+            instance.delete()
+
+        self.instances = []
+
     def createSet1(self):
         """create instance set 1 -- simple, three running instances,
         one nameless (but with empty Name tag) and two others named
         layer and hardy."""
-        self.instance(tag_Name='')
-        self.instance(tag_Name='laurel')
-        self.instance(tag_Name='hardy')
+        self.instances.extend([
+                self.instance(tag_Name=''),
+                self.instance(tag_Name='laurel'),
+                self.instance(tag_Name='hardy')
+                ])
 
     def createSet2(self):
         """instance set 2 -- 10 instances, where
@@ -90,7 +99,7 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
             ]
 
         for data in sets:
-            self.instance(**data)
+            self.instances.append(self.instance(**data))
 
     def case_with_filters(self, *filters):
         for pick_filter, expected_count in filters:
@@ -144,3 +153,26 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
             ('tag[production] or tag[devtest]', 8),
             ('tag[staging]', 2),
             )
+
+    def testFreeze(self):
+        aws = util.AwsMock()
+
+        self.createSet2()
+        with self.instance_filters('region = none'):
+            self.project.freeze(aws=aws)
+
+        self.assertEqual(aws.calls, [])
+
+        # what is needed:
+        #
+        # attach project mate
+        # count ops
+        # compare expected with resulting instance state
+        # restore project state back to running
+        #
+
+        self.fail('not yet implemented')
+
+    def testThaw(self):
+        # see freeze test case
+        self.fail('not yet implemented')

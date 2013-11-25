@@ -1,4 +1,8 @@
-class MateMock(object):
+import logging
+
+log = logging.getLogger('freezr.tests.util')
+
+class AwsMock(object):
     def __init__(self, *args, **kwargs):
         self.args = args
         self.kwargs = kwargs
@@ -6,22 +10,27 @@ class MateMock(object):
         self.fail = False
         self.result = (0, 0, 0)
 
+        log.debug('AwsMock.__init__: args=%r kwargs=%r', args, kwargs)
+
     def refresh_region(self, account, region):
+        log.debug('AwsMock.refresh_region: account=%r region=%r',
+                  account, region)
+
         if self.fail:
             raise Exception('intentional failure')
 
         self.calls.append((account, region))
         return self.result
 
-class MateMockFactory(object):
+class AwsMockFactory(object):
     def __init__(self):
-        self.mates = []
-        self.mate = None
+        self.aws_list = []
+        self.aws = None
 
     def __call__(self, *args, **kwargs):
-        self.mate = MateMock(*args, **kwargs)
-        self.mates.append(self.mate)
-        return self.mate
+        self.aws = AwsMock(*args, **kwargs)
+        self.aws_list.append(self.aws)
+        return self.aws
 
 class FreezrTestCaseMixin(object):
     _instance_id = 0

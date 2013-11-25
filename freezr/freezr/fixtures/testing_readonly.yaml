@@ -1,0 +1,21 @@
+- fields: {active: true, description: '', domain: 'test.local', name: 'Test domain', owner: 1}
+  model: freezr.domain
+  pk: 1
+- fields: {access_key: 'AKIAJIHTR7UHALP3R3DQ', active: true, domain: 1, name: 'Consolidated account', secret_key: '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'}
+  model: freezr.account
+  pk: 1
+- fields: {account: 1, description: '', name: 'Project 1',
+    state: init, pick_filter: 'region = region', save_filter: 'tag[Name]', terminate_filter: ''}
+  model: freezr.project
+  pk: 1
+- fields: {access_key: 'AKIAJ4RMBIMLPNI62AYQ', active: true, domain: 1, name: 'Personal account', secret_key: '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'}
+  model: freezr.account
+  pk: 2
+- fields: {account: 2, description: '', name: 'Test: Public',
+    state: init, pick_filter: 'tag[freezrtest] and tag[service] = public', save_filter: 'tag[role] = ci', terminate_filter: 'tag[role] = slave'}
+  model: freezr.project
+  pk: 2
+- fields: {account: 2, description: '', name: 'Test: VPC',
+    state: init, pick_filter: 'tag[freezrtest] and tag[service] = "vpc"', save_filter: 'tag[role] = ci', terminate_filter: 'tag[role] = slave'}
+  model: freezr.project
+  pk: 3

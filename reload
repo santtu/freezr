@@ -1,0 +1,9 @@
+#!/bin/bash -e
+top_dir=$(dirname $0)
+app_dir=$top_dir/freezr
+source $top_dir/virtualenv/bin/activate
+cd $app_dir
+rm db.sqlite3
+./manage.py syncdb --noinput
+./manage.py loaddata freezr/fixtures/testing*.yaml
+exit 0

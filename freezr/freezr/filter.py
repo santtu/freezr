@@ -58,7 +58,7 @@ class Variable(Element):
         return self.variable
 
     def evaluate(self, env):
-        value = env[self.variable]
+        value = env.get(self.variable)
         log.debug("Variable: {0} => {1!r}".format(self.variable, value))
         return value
 
@@ -194,6 +194,12 @@ class Filter(object):
 
     def __init__(self, text):
         self._expression = self.parser.parseString(text)[0]
+
+    def AND(self, other):
+        return And(None, None, [[self, other]])
+
+    def OR(self, other):
+        return Or(None, None, [[self, other]])
 
     @property
     def expression(self):

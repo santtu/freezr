@@ -11,7 +11,7 @@ from rest_framework import status
 from itertools import chain
 from datetime import datetime
 import copy
-from .util import MateMockFactory
+from .util import AwsMockFactory
 
 log = logging.getLogger(__file__)
 
@@ -209,35 +209,35 @@ class TestREST(test.APITestCase):
             log.debug("%s", a)
 
         import freezr.aws
-        old_account = freezr.aws.Account
+        old_interface = freezr.aws.AwsInterface
         try:
-            factory = MateMockFactory()
-            freezr.aws.Account = factory
+            factory = AwsMockFactory()
+            freezr.aws.AwsInterface = factory
 
             log.debug("regions=%r", Account.objects.get(pk=1).regions)
 
             old = Account.objects.get(pk=1).updated
             response = self.client.post(reverse('account-refresh', args=[1]))
-            log.debug("response=%r factory=%r factory.mates=%r "
-                      "factory.mate.calls=%r",
-                      response, factory, factory.mates, factory.mate.calls)
+            log.debug("response=%r factory=%r factory.aws_list=%r "
+                      "factory.aws.calls=%r",
+                      response, factory, factory.aws_list, factory.aws.calls)
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(len(factory.mates), 1)
-            self.assertEqual(len(factory.mate.calls), 8)
+            self.assertEqual(len(factory.aws_list), 1)
+            self.assertEqual(len(factory.aws.calls), 8)
             self.assertNotEqual(Account.objects.get(pk=1).updated, old)
 
-            factory = MateMockFactory()
-            freezr.aws.Account = factory
+            factory = AwsMockFactory()
+            freezr.aws.AwsInterface = factory
 
             old = Account.objects.get(pk=3).updated
             response = self.client.post(reverse('account-refresh', args=[3]))
-            log.debug("response=%r factory=%r factory.mates=%r "
-                      "factory.mate.calls=%r",
-                      response, factory, factory.mates, factory.mate.calls)
+            log.debug("response=%r factory=%r factory.aws_list=%r "
+                      "factory.aws.calls=%r",
+                      response, factory, factory.aws_list, factory.aws.calls)
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(len(factory.mates), 1)
-            self.assertEqual(len(factory.mate.calls), 8)
+            self.assertEqual(len(factory.aws_list), 1)
+            self.assertEqual(len(factory.aws.calls), 8)
             self.assertNotEqual(Account.objects.get(pk=3).updated, old)
 
         finally:
-            freezr.aws.Account = old_account
+            freezr.aws.AwsInterface = old_interface

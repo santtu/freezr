@@ -6,6 +6,8 @@ from datetime import timedelta
 from celery.decorators import periodic_task
 from celery.task.schedules import crontab
 import logging
+#from freezr.aws import AwsInterface
+import freezr.aws
 
 log = logging.getLogger('freezr.tasks')
 
@@ -58,16 +60,16 @@ def refresh_account(pk, regions=None, older_than=None):
 
     # Ah well, probably should get a database transaction or something
     # like that here.
-    account.refresh(regions)
+    account.refresh(regions=regions, aws=freezr.aws.AwsInterface(account))
 
 @app.task()
 def freeze_project(pk):
     project = Project.objects.get(id=pk)
     log.info('Freeze Project: %r', project)
-    project.freeze()
+    project.freeze(aws=freezr.aws.AwsInterface(project.account))
 
 @app.task()
 def thaw_project(pk):
     project = Project.objects.get(id=pk)
     log.info('Thaw Project: %r', project)
-    project.thaw()
+    project.thaw(aws=freezr.aws.AwsInterface(project.account))

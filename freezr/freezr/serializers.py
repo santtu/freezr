@@ -40,9 +40,20 @@ class AccountSerializer(serializers.HyperlinkedModelSerializer):
                   'instances', 'updated', 'log_entries', 'url')
 
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
-    picked_instances = serializers.Field()
-    saved_instances = serializers.Field()
+    picked_instances = serializers.HyperlinkedRelatedField(
+        many=True, view_name='instance-detail', read_only=True)
+
+    saved_instances = serializers.HyperlinkedRelatedField(
+        many=True, view_name='instance-detail', read_only=True)
+
+    terminated_instances = serializers.HyperlinkedRelatedField(
+        many=True, view_name='instance-detail', read_only=True)
+
+    skipped_instances = serializers.HyperlinkedRelatedField(
+        many=True, view_name='instance-detail', read_only=True)
+
     regions = CommaStringListField(source='_regions')
+
     log_entries = LogEntrySerializer(many=True)
 
     class Meta:
@@ -50,8 +61,10 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('id', 'state', 'account',
                   'regions',
                   'name', 'description',
-                  'elastic_ips', 'pick_filter', 'save_filter',
+                  'elastic_ips',
+                  'pick_filter', 'save_filter', 'terminate_filter',
                   'picked_instances', 'saved_instances',
+                  'skipped_instances', 'terminated_instances',
                   'log_entries', 'url')
 
 class InstanceSerializer(serializers.HyperlinkedModelSerializer):

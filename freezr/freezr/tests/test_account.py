@@ -4,7 +4,7 @@ import logging
 import time
 from freezr.models import Account, Domain, Project, Instance
 from django.db.models import Q
-from .util import MateMock, FreezrTestCaseMixin
+from .util import AwsMock, FreezrTestCaseMixin
 
 log = logging.getLogger(__file__)
 
@@ -12,27 +12,26 @@ class TestAccount(FreezrTestCaseMixin, test.TestCase):
     def setUp(self):
         self.domain = Domain(name="Test domain", domain=".test")
         self.domain.save()
-        self.mate = MateMock()
+        self.aws = AwsMock()
         self.account = Account(domain=self.domain,
                                name="Test account",
                                access_key="1234",
-                               secret_key="abcd",
-                               mate=self.mate)
+                               secret_key="abcd")
         self.account.save()
 
     def testAccountRefresh(self):
-        # test account refresh calls the AWS mate object
+        # test account refresh calls the AWS interface object
         self.assertEqual(0, len(self.account.regions))
         self.assertIsNone(self.account.updated)
 
         old = self.account.updated
 
         # If there are no regions to update then there should be no
-        # calls to mate, and the update timestamp should not change
-        # from previous value.
+        # calls to aws interface, and the update timestamp should not
+        # change from previous value.
 
-        self.account.refresh()
-        self.assertEqual(0, len(self.mate.calls))
+        self.account.refresh(aws=self.aws)
+        self.assertEqual(0, len(self.aws.calls))
         self.assertIsNone(self.account.updated)
 
         old = self.account.updated
@@ -42,10 +41,10 @@ class TestAccount(FreezrTestCaseMixin, test.TestCase):
         self.assertEqual(6, len(self.account.regions))
 
         time.sleep(0.01) # make sure some time passes, we're comparing timestamps
-        self.account.refresh()
-        self.assertEqual(6, len(self.mate.calls))
-        self.assertTrue(all([c[0] == self.account for c in self.mate.calls]))
-        self.assertEqual(set([u'a', u'b', u'c', u'd', u'e', u'f']), set([c[1] for c in self.mate.calls]))
+        self.account.refresh(aws=self.aws)
+        self.assertEqual(6, len(self.aws.calls))
+        self.assertTrue(all([c[0] == self.account for c in self.aws.calls]))
+        self.assertEqual(set([u'a', u'b', u'c', u'd', u'e', u'f']), set([c[1] for c in self.aws.calls]))
         self.assertNotEqual(old, self.account.updated)
 
         Project(name="Test project 2", account=self.account, _regions="").save()
@@ -99,20 +98,20 @@ class TestAccount(FreezrTestCaseMixin, test.TestCase):
         assertState('init')
 
         # Refresh should not change that
-        self.account.refresh()
+        self.account.refresh(aws=self.aws)
         assertState('init')
 
         # Not even when there's (non-matching) instance.
         self.instance(region='a')
-        self.account.refresh()
+        self.account.refresh(aws=self.aws)
         assertState('init')
 
         # But when there's one ...
         i = self.instance(region='a', tag_Name='target')
-        self.account.refresh()
+        self.account.refresh(aws=self.aws)
         assertState('running')
 
         # even if it later goes away
         i.delete()
-        self.account.refresh()
+        self.account.refresh(aws=self.aws)
         assertState('running')

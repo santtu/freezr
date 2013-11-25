@@ -3,17 +3,19 @@ import boto.ec2
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 import freezr.util as util
 
-# This file contains mix-ins for model.* classes. We do this here
-# separately to avoid putting a lot of AWS-specific code into the
-# model.py file. It also allows us to keep a better separation of
-# concerns.
+class AwsInterface(util.Logger):
+    """This is the interface to AWS.
 
-class BaseAWS(util.Logger):
-    """Common base class for common tasks, like getting EC2 connection
-    from an account.
+    The AWS interface can have knowledge of the data model, e.g. it is
+    allowed to modify and update accounts, projects, instances
+    etc. This is a separate class to make testing easier, and also to
+    move a lot of aws-specific code out of the model classes
+    themselves (lest they bloat)."""
 
-    This class, and its descendants assume that you have
-    freezr.util.Logger mixed in to the instance."""
+    def __init__(self, account):
+        super(AwsInterface, self).__init__()
+        self.account = account
+
     def connect_ec2(self, region):
         conn = boto.ec2.connect_to_region(
             region,
@@ -25,11 +27,6 @@ class BaseAWS(util.Logger):
 
         return conn
 
-    def __init__(self, account=None):
-        super(BaseAWS, self).__init__()
-        self.account = account
-
-class Account(BaseAWS):
     def refresh_region(self, account, region):
         """Refreshes given `account` information on `region`. Returns
         a three-value tuple (total, added, deleted) where `total` is
@@ -139,3 +136,31 @@ class Account(BaseAWS):
         return (len(seen_instances),
                 len(added_instances),
                 len(disappeared_instances))
+
+    def terminate_instance(self, instance):
+        """Terminates the given instance, updating its status as
+        needed.
+
+        This *does not* do the double-termination trick to get rid of
+        the instance metadata. We'll leave it lingering so humans can
+        also see that result from AWS console, if needed."""
+
+        self.log.debug("terminate_instance: %s", instance)
+
+    def freeze_instance(self, instance):
+        """Freeze the given instance."""
+        self.log.debug("freeze_instance: %s, state %s",
+                       instance, instance.state)
+
+        if instance.state != 'running':
+            # TODO: add suitable exception
+            return
+
+    def thaw_instance(self, instance):
+        """Thaw the given instance."""
+        self.log.debug("thaw_instance: %s, state %s",
+                       instance, instance.state)
+
+        if instance.state != 'stopped':
+            # TODO: add suitable exception
+            return
