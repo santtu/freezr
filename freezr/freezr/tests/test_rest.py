@@ -11,7 +11,7 @@ from rest_framework import status
 from itertools import chain
 from datetime import datetime
 import copy
-from .util import AwsMockFactory
+from .util import AwsMockFactory, with_aws
 
 log = logging.getLogger(__file__)
 
@@ -95,7 +95,9 @@ class TestREST(test.APITestCase):
                                       u'us-west-2',
                                       u'us-west-1',
                                       u'eu-west-1'],
-                          'instances': [],
+                          'instances': [
+                    'http://testserver/api/instance/1/',
+                    'http://testserver/api/instance/2/'],
                           'updated': None,
                           'log_entries': [],
                           'url': 'http://testserver/api/account/1/'})
@@ -130,7 +132,10 @@ class TestREST(test.APITestCase):
                                       u'us-west-2',
                                       u'us-west-1',
                                       u'eu-west-1'],
-                          'instances': [],
+                          'instances': [
+                    'http://testserver/api/instance/3/',
+                    'http://testserver/api/instance/4/',
+                    'http://testserver/api/instance/5/'],
                           'updated': None,
                           'log_entries': [{'type': u'info',
                                            'time': datetime(2013, 11, 22,
@@ -172,13 +177,17 @@ class TestREST(test.APITestCase):
                           'name': u'Test project no. 1.1.1',
                           'description': u'',
                           'elastic_ips': [],
-                          'pick_filter': u'',
-                          'save_filter': u'',
-                          'terminate_filter': u'',
-                          'picked_instances': [],
-                          'saved_instances': [],
-                          'terminated_instances': [],
+                          'pick_filter': u'tag[project111]',
+                          'save_filter': u'tag[save]',
+                          'terminate_filter': u'tag[terminate]',
+                          'picked_instances': [
+                    'http://testserver/api/instance/2/',
+                    'http://testserver/api/instance/1/'],
+                          'saved_instances': [
+                    'http://testserver/api/instance/1/'],
                           'skipped_instances': [],
+                          'terminated_instances': [
+                    'http://testserver/api/instance/2/'],
                           'log_entries': [],
                           'url': 'http://testserver/api/project/1/'})
         response = self.client.get(reverse('project-detail', args=[2]))
@@ -197,13 +206,19 @@ class TestREST(test.APITestCase):
                           'name': u'Test project no. 2.1.1',
                           'description': u'',
                           'elastic_ips': [],
-                          'pick_filter': u'',
-                          'save_filter': u'',
+                          'pick_filter': u'tag[project211]',
+                          'save_filter': u'true',
                           'terminate_filter': u'',
-                          'picked_instances': [],
-                          'saved_instances': [],
-                          'terminated_instances': [],
+
+                          'picked_instances': [
+                    'http://testserver/api/instance/5/',
+                    'http://testserver/api/instance/3/'],
+                          'saved_instances': [
+                    'http://testserver/api/instance/5/',
+                    'http://testserver/api/instance/3/'],
                           'skipped_instances': [],
+                          'terminated_instances': [],
+
                           'log_entries': [],
                           'url': 'http://testserver/api/project/2/'})
 
@@ -216,12 +231,8 @@ class TestREST(test.APITestCase):
         for a in Account.objects.all():
             log.debug("%s", a)
 
-        import freezr.aws
-        old_interface = freezr.aws.AwsInterface
-        try:
-            factory = AwsMockFactory()
-            freezr.aws.AwsInterface = factory
-
+        factory = AwsMockFactory()
+        with with_aws(factory):
             log.debug("regions=%r", Account.objects.get(pk=1).regions)
 
             old = Account.objects.get(pk=1).updated
@@ -247,5 +258,103 @@ class TestREST(test.APITestCase):
             self.assertEqual(len(factory.aws.calls), 8)
             self.assertNotEqual(Account.objects.get(pk=3).updated, old)
 
-        finally:
-            freezr.aws.AwsInterface = old_interface
+    ## Note: It is not possible to really test refresh with
+    ## transitioning states, since the test suite will run all tasks
+    ## synchronously this would cause tasks.refresh_instance to
+    ## recursively call itself.
+
+    # def testRefreshAccountTransitioningInstances(self):
+    #     pass
+
+    def testFreezeAccount(self):
+        factory = AwsMockFactory()
+
+        # This should fail with 409 since the project is in init state
+        with with_aws(factory):
+            response = self.client.post(reverse('project-freeze', args=[1]))
+            log.debug("response=%r factory=%r factory.aws_list=%r "
+                      "factory.aws.calls=%r",
+                      response, factory, factory.aws_list, factory.aws and factory.aws.calls)
+            self.assertEqual(response.status_code, 409)
+            self.assertEqual(factory.aws_list, [])
+            self.assertTrue('error' in response.data)
+            self.assertEqual(response.data['error'], 'Project state is not valid for freezing')
+
+        for p in Project.objects.all():
+            p.state = 'running'
+            p.save()
+
+        with with_aws(factory):
+            response = self.client.post(reverse('project-freeze', args=[1]))
+            log.debug("response=%r factory=%r factory.aws_list=%r "
+                      "factory.aws.calls=%r",
+                      response, factory, factory.aws_list, factory.aws and factory.aws.calls)
+            self.assertEqual(response.status_code, 202)
+            self.assertEqual(len(factory.aws_list), 3)
+            self.assertTrue('message' in response.data)
+            self.assertTrue('operation' in response.data)
+            self.assertEqual(response.data['message'], 'Project freezing started')
+
+            # Combine calls from all AWS mocks
+            calls = chain.from_iterable([a.calls for a in factory.aws_list])
+            calls = list(calls)
+
+            # Collapse names of called methods into single list
+            names = [c[0] for c in calls]
+            names = reduce(lambda a, b: a if a[-1] == b else a + [b], names[1:], [names[0]])
+
+            # This is the expected call sequence. Actually we'd want
+            # to do it as a regular expression refresh_region
+            # (terminate_instance|freeze_instance)+ refresh_region but
+            # oh well. Don't make test cases too elaborate.
+            self.assertTrue(
+                (names == ['refresh_region', 'terminate_instance',
+                           'freeze_instance', 'refresh_region'] or
+                 names == ['refresh_region', 'freeze_instance',
+                           'terminate_instance', 'refresh_region']),
+                "%r is not expected refresh+freeze/terminate+refresh sequence" % (names,))
+
+    def testThawAccount(self):
+        factory = AwsMockFactory()
+
+        # This should fail with 409 since the project is in init state
+        with with_aws(factory):
+            response = self.client.post(reverse('project-thaw', args=[1]))
+            log.debug("response=%r factory=%r factory.aws_list=%r "
+                      "factory.aws.calls=%r",
+                      response, factory, factory.aws_list, factory.aws and factory.aws.calls)
+            self.assertEqual(response.status_code, 409)
+            self.assertEqual(factory.aws_list, [])
+            self.assertTrue('error' in response.data)
+            self.assertEqual(response.data['error'], 'Project state is not valid for thawing')
+
+        for p in Project.objects.all():
+            p.state = 'frozen'
+            p.save()
+
+        # set instances to stopped state
+        for i in Instance.objects.all():
+            i.state = 'stopped'
+            i.save()
+
+        with with_aws(factory):
+            response = self.client.post(reverse('project-thaw', args=[1]))
+            log.debug("response=%r factory=%r factory.aws_list=%r "
+                      "factory.aws.calls=%r",
+                      response, factory, factory.aws_list, factory.aws and factory.aws.calls)
+            self.assertEqual(response.status_code, 202)
+            self.assertEqual(len(factory.aws_list), 3)
+            self.assertTrue('message' in response.data)
+            self.assertTrue('operation' in response.data)
+            self.assertEqual(response.data['message'], 'Project thawing started')
+
+            # Combine calls from all AWS mocks
+            calls = chain.from_iterable([a.calls for a in factory.aws_list])
+            calls = list(calls)
+
+            # Collapse names of called methods into single list
+            names = [c[0] for c in calls]
+            names = reduce(lambda a, b: a if a[-1] == b else a + [b], names[1:], [names[0]])
+
+            self.assertEqual(names, ['refresh_region',
+                                     'thaw_instance', 'refresh_region'])

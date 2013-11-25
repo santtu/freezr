@@ -92,3 +92,5 @@ def with_aws(aws):
         def __exit__(self, type, value, traceback):
             import freezr.aws
             freezr.aws.AwsInterface = self.old_aws
+
+    return inner(aws)

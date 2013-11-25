@@ -33,16 +33,17 @@
   pk: 1
   fields:
     name: Test project no. 1.1.1
-    pick_filter: ''
-    save_filter: ''
+    pick_filter: 'tag[project111]'
+    save_filter: 'tag[save]'
+    terminate_filter: 'tag[terminate]'
     account: 1
     _regions: 'us-east-1,ap-northeast-1,sa-east-1,ap-southeast-1,ap-southeast-2,us-west-2,us-west-1,eu-west-1'
 - model: freezr.project
   pk: 2
   fields:
     name: Test project no. 2.1.1
-    pick_filter: ''
-    save_filter: ''
+    pick_filter: 'tag[project211]'
+    save_filter: 'true'
     account: 3
     _regions: 'us-east-1,ap-northeast-1,sa-east-1,ap-southeast-1,ap-southeast-2,us-west-2,us-west-1,eu-west-1'
 - model: freezr.logentry
@@ -53,3 +54,65 @@
     time: ! '2013-11-22
       10:00:53.349330+00:00'
     type: info
+- model: freezr.instance
+  pk: 1
+  fields:
+    account: 1
+    instance_id: i-000001
+    type: m1.small
+    store: ebs
+    state: running
+- model: freezr.instancetag
+  fields: {instance: 1, key: 'project111', value: 'true' }
+- model: freezr.instancetag
+  fields: {instance: 1, key: 'save', value: 'true' }
+- model: freezr.instancetag
+  fields: {instance: 1, key: 'terminate', value: 'true' }
+- model: freezr.instance
+  pk: 2
+  fields:
+    account: 1
+    instance_id: i-000002
+    type: m1.small
+    store: ebs
+    state: running
+- model: freezr.instancetag
+  fields: {instance: 2, key: 'project111', value: 'true' }
+- model: freezr.instancetag
+  fields: {instance: 2, key: 'terminate', value: 'true' }
+- model: freezr.instance
+  pk: 3
+  fields:
+    account: 3
+    instance_id: i-000003
+    type: m1.small
+    store: ebs
+    state: running
+- model: freezr.instancetag
+  fields: {instance: 3, key: 'project211', value: 'true' }
+- model: freezr.instancetag
+  fields: {instance: 3, key: 'terminate', value: 'true' }
+- model: freezr.instance
+  pk: 4
+  fields:
+    account: 3
+    instance_id: i-000004
+    type: m1.small
+    store: ebs
+    state: running
+- model: freezr.instancetag
+  fields: {instance: 4, key: 'project212', value: 'true' }
+- model: freezr.instancetag
+  fields: {instance: 4, key: 'terminate', value: 'true' }
+- model: freezr.instance
+  pk: 5
+  fields:
+    account: 3
+    instance_id: i-000005
+    type: m1.small
+    store: ebs
+    state: running
+- model: freezr.instancetag
+  fields: {instance: 5, key: 'project211', value: 'true' }
+- model: freezr.instancetag
+  fields: {instance: 5, key: 'save', value: 'true' }
