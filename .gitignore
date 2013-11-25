@@ -1,2 +1,5 @@
 virtualenv
 *.pyc
+*.filtered.json
+.idea
+*.iml
