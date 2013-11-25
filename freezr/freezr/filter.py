@@ -3,11 +3,19 @@ import re
 import logging
 
 log = logging.getLogger('freezr.filter')
+TRACE = False
+
+# monkeypatch for low-level trace
+def _trace(self, *args, **kwargs):
+    if TRACE:
+        self.debug(*args, **kwargs)
+log.trace = _trace
+del _trace
 
 def dump(w, t):
-    log.debug("============ {0}".format(w))
+    log.trace("============ {0}".format(w))
     for i in range(len(t)):
-        log.debug("#{0} = {1!r}".format(i, t[i]))
+        log.trace("#{0} = {1!r}".format(i, t[i]))
 
 def dumper(w):
     def func(s, l, t):
@@ -45,7 +53,7 @@ class Literal(Element):
         return unicode(self.value)
 
     def evaluate(self, env):
-        log.debug('Literal: => {0!r}'.format(self.value))
+        log.trace('Literal: => {0!r}'.format(self.value))
         return self.value
 
 class Variable(Element):
@@ -59,7 +67,7 @@ class Variable(Element):
 
     def evaluate(self, env):
         value = env.get(self.variable)
-        log.debug("Variable: {0} => {1!r}".format(self.variable, value))
+        log.trace("Variable: {0} => {1!r}".format(self.variable, value))
         return value
 
 class Tag(Element):
@@ -73,7 +81,7 @@ class Tag(Element):
 
     def evaluate(self, env):
         value = env.get('tags', dict()).get(self.key, '')
-        log.debug("Tag: {0!r} => {1!r}".format(self.key, value))
+        log.trace("Tag: {0!r} => {1!r}".format(self.key, value))
         return value
 
 class Logical(Element):
@@ -119,7 +127,7 @@ class Or(Logical):
     def evaluate(self, env):
         for expr in self.ors:
             value = expr.evaluate(env)
-            log.debug("Or: {0!r}|{0} => {1}".format(expr, value))
+            log.trace("Or: {0!r}|{0} => {1}".format(expr, value))
 
             if value == True:
                 return True
@@ -146,7 +154,7 @@ class Comparison(Element):
         lhs = self.lhs.evaluate(env)
         rhs = self.rhs.evaluate(env)
         value = self.ops[self.op](lhs, rhs)
-        log.debug("Compare: {0!r} {1} {2!r} => {3!r}".format(lhs, self.op, rhs, value))
+        log.trace("Compare: {0!r} {1} {2!r} => {3!r}".format(lhs, self.op, rhs, value))
         return value
 
 class NotNull(Element):
@@ -159,7 +167,7 @@ class NotNull(Element):
 
     def evaluate(self, env):
         value = self.expr.evaluate(env)
-        log.debug("NotNull: {0!r}{0} => {1}".format(self.expr, value))
+        log.trace("NotNull: {0!r}{0} => {1}".format(self.expr, value))
         return value is not None and value != ""
 
 def get_parser():
