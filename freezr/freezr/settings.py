@@ -31,6 +31,10 @@ ALLOWED_HOSTS = []
 
 TESTING = 'test' in sys.argv
 
+if TESTING:
+    print("========================================================================")
+    print("TESTING enabled\n")
+
 # Application definition
 
 INSTALLED_APPS = (

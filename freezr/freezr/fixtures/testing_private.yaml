@@ -1,0 +1,11 @@
+- fields: {access_key: 'AKIAJH3LIPN74P3XO3UQ', active: true, domain: 1, name: 'Personal account (real access)', secret_key: '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'}
+  model: freezr.account
+  pk: 3
+- fields: {account: 3, description: '', name: 'Test: Public',
+    state: init, pick_filter: 'tag[freezrtest] and tag[service] = public', save_filter: 'tag[role] = ci', terminate_filter: 'tag[role] = slave'}
+  model: freezr.project
+  pk: 4
+- fields: {account: 3, description: '', name: 'Test: VPC',
+    state: init, pick_filter: 'tag[freezrtest] and tag[service] = "vpc"', save_filter: 'tag[role] = ci', terminate_filter: 'tag[role] = slave'}
+  model: freezr.project
+  pk: 5

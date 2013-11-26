@@ -74,6 +74,7 @@ INSTANCE_STATES = firsts(INSTANCE_STATE_CHOICES)
 
 LOG_ENTRY_TYPES_CHOICES = (
     ('info', 'Informational'),
+    ('verbose', 'Verbose information'), # lower priority than info
     ('exception', 'Program exception'),
     ('error', 'Error'),
     ('audit', 'Configuration changes')
@@ -192,11 +193,14 @@ class Account(BaseModel):
 
         elapsed = timezone.now() - started
 
+        # type switch to keep info level events relevant, "nothing
+        # changed" isn't that
         self.log_entry('Refreshed %d regions in %.2f seconds, '
                        'total %d / added %d / deleted %d instances' % (
                 len(regions),
                 elapsed.seconds + elapsed.microseconds / 1e6,
-                total, added, deleted))
+                total, added, deleted),
+                       type=("info" if (added + deleted) > 0 else "verbose"))
 
         # Go through projects that are 'init' state and see if they
         # have any picked or saved instances --- then we move them to
@@ -503,6 +507,8 @@ class Project(BaseModel):
                 len(save_instances),
                 elapsed.seconds + elapsed.microseconds / 1e6))
 
+        self.account.log_entry('Froze project %s' % (self,))
+
     def thaw(self, aws):
         if self.state != 'frozen':
             return
@@ -535,6 +541,8 @@ class Project(BaseModel):
         self.log_entry('Thawed project, started %d instances in %.2f seconds' % (
                 len(saved_instances),
                 elapsed.seconds + elapsed.microseconds / 1e6))
+
+        self.account.log_entry('Thawed project %s' % (self,))
 
     class Meta:
         permissions = (

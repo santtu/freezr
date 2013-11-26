@@ -1,0 +1,13 @@
+- fields:
+    email: admin@localhost
+    first_name: 'Admin'
+    groups: []
+    is_active: true
+    is_staff: true
+    is_superuser: true
+    last_name: 'User'
+    password: pbkdf2_sha256$12000$fkPUY11IKKwl$VcfElbhRWZka0msHglB7chnhVwnB87erU9yWMg2M0AQ=
+    user_permissions: []
+    username: admin
+  model: auth.user
+  pk: 1
