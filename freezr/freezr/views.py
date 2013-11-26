@@ -5,16 +5,28 @@ from django.http import Http404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from rest_framework.exceptions import MethodNotAllowed
 from rest_framework import status
 from rest_framework import generics
 from rest_framework import viewsets, routers
 import freezr.util as util
+import traceback
 
-class DomainViewSet(viewsets.ModelViewSet):
+class BaseViewSet(util.Logger, viewsets.ModelViewSet):
+    def handle_exception(self, exc):
+        # Just ignore some exceptions which are communicating normal
+        # cases up the chain.
+        if not isinstance(exc, (MethodNotAllowed, Http404)):
+            self.log.exception('Handling request %s %s',
+                               self.request.method, self.request.get_full_path())
+
+        return super(BaseViewSet, self).handle_exception(exc)
+
+class DomainViewSet(BaseViewSet):
     model = Domain
     serializer_class = DomainSerializer
 
-class AccountViewSet(util.Logger, viewsets.ModelViewSet):
+class AccountViewSet(BaseViewSet):
     model = Account
     serializer_class = AccountSerializer
 
@@ -28,10 +40,18 @@ class AccountViewSet(util.Logger, viewsets.ModelViewSet):
         account = Account.objects.get(pk=pk)
 
         # use older_than to cause some throttling
-        tasks.refresh_account.delay(pk, older_than=30)
-        return Response()
+        async = tasks.refresh_account.delay(pk, older_than=30)
+        return Response({'message': 'Project refresh started',
+                         'operation': async.id},
+                        status=status.HTTP_202_ACCEPTED)
 
-class ProjectViewSet(util.Logger, viewsets.ModelViewSet):
+    def post_save(self, obj, **kwargs):
+        super(AccountViewSet, self).post_save(obj, **kwargs)
+        self.log.debug("post_save: triggering account %s refresh", obj)
+        tasks.refresh_account.apply_async([obj.id], {'older_than': 0},
+                                          countdown=5)
+
+class ProjectViewSet(BaseViewSet):
     model = Project
     serializer_class = ProjectSerializer
 

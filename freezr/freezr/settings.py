@@ -23,11 +23,14 @@ BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 SECRET_KEY = 'o46@o6k5p#&kw(=+-d$=5-m1!7i&weju-e_pdn&d4rz27&__@='
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-TEMPLATE_DEBUG = True
-
-ALLOWED_HOSTS = []
+if True:
+    DEBUG = True
+    TEMPLATE_DEBUG = True
+    ALLOWED_HOSTS = []
+else:
+    DEBUG = False
+    TEMPLATE_DEBUG = False
+    ALLOWED_HOSTS = ['*']
 
 TESTING = 'test' in sys.argv
 
@@ -100,6 +103,9 @@ STATIC_URL = '/static/'
 BROKER_URL = 'amqp://guest@localhost//'
 CELERY_TIMEZONE = 'UTC'
 CELERYBEAT_SCHEDULER = "djcelery.schedulers.DatabaseScheduler"
+CELERY_IMPORTS = ('freezr.tasks',)
+
+# add annotations for rate limit etc.
 
 if TESTING:
     CELERY_ALWAYS_EAGER = True

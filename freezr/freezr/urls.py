@@ -1,4 +1,6 @@
-from django.conf.urls import patterns, include, url
+#from django.conf.urls import patterns, include, url
+import django.conf.urls as urls
+from django.views.defaults import server_error
 from freezr.views import *
 from rest_framework import viewsets, routers
 from django.contrib import admin
@@ -15,9 +17,14 @@ router.register(r'instance', InstanceViewSet)
 
 freezr.admin.setup()
 
-urlpatterns = patterns(
+urlpatterns = urls.patterns(
     '',
 
-    url(r'^admin/', include(admin.site.urls)),
-    url(r'^api/', include(router.urls))
+    urls.url(r'^admin/', urls.include(admin.site.urls)),
+    urls.url(r'^api/', urls.include(router.urls))
     )
+
+def handler500(request):
+    log.exception('Internal server error on %s %s',
+                  request.method, request.get_full_path())
+    return server_error(request)
