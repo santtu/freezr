@@ -1,7 +1,9 @@
 # Get all other defaults directly from freezr.settings, but override
 # some custom ones.
-from freezr.settings import *
+import os
+os.environ['DONT_IMPORT_CELERY'] = 'true'
 
+from freezr.settings import *
 
 # testserver runs at 9000, put broker at 9001
 BROKER_URL = 'amqp://guest@localhost:9001//'
@@ -43,4 +45,4 @@ LOGGING = {
         }
     }
 
-#import freezr.celery
+import freezr.celery

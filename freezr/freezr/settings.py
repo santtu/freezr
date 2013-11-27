@@ -162,4 +162,5 @@ REST_FRAMEWORK = {
     'TEST_REQUEST_DEFAULT_FORMAT': 'json'
 }
 
-import freezr.celery
+if 'DONT_IMPORT_CELERY' not in os.environ:
+    import freezr.celery
