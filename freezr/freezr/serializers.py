@@ -37,9 +37,11 @@ class DomainSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Domain
-        fields = ('id', 'name', 'description', 'active', 'accounts', 'log_entries', 'domain', 'url')
+        fields = ('id', 'name', 'description', 'active', 'accounts',
+                  'log_entries', 'domain', 'url')
 
-class AccountSerializer(util.Logger, ImmutableMixin, serializers.HyperlinkedModelSerializer):
+class AccountSerializer(util.Logger, ImmutableMixin,
+                        serializers.HyperlinkedModelSerializer):
     regions = serializers.Field()
     updated = serializers.Field() # no user-initiated updates on this field
     log_entries = LogEntrySerializer(many=True, read_only=True)
@@ -51,7 +53,8 @@ class AccountSerializer(util.Logger, ImmutableMixin, serializers.HyperlinkedMode
     #     return super(AccountSerializer, self).restore_fields(data, files)
 
     # def restore_object(self, attrs, instance=None):
-    #     ret = super(AccountSerializer, self).restore_object(attrs, instance=instance)
+    #     ret = super(AccountSerializer, self).restore_object(attrs,
+    # instance=instance)
     #     self.log.debug("restore_object: attrs=%r instance=%r => %r",
     #                    attrs, instance, ret)
     #     return ret
@@ -59,6 +62,29 @@ class AccountSerializer(util.Logger, ImmutableMixin, serializers.HyperlinkedMode
     # def from_native(self, data, files):
     #     self.log.debug("from_native: data=%r files=%r", data, files)
     #     return super(AccountSerializer, self).from_native(data, files)
+    def restore_object(self, attrs, instance=None):
+        # Cannot change active if any of the projects are in a
+        # transitioning state.
+        if (instance and 'active' in attrs and
+            attrs['active'] != instance.active):
+            for project in instance.projects.all():
+                if project.state in ('freezing', 'thawing'):
+                    self._errors['active'] = [
+                        'Cannot change account active state while '
+                        'projects are in a transitioning state'
+                        ]
+                    self.log.error('tried to change active status of account'
+                                   '%s while projects transitioning',
+                                   instance)
+                    return
+
+        if instance:
+            self.log.debug("Account %d update, active=%r => %r",
+                           instance.id, instance.active,
+                           attrs.get('active', None))
+
+        return super(AccountSerializer, self).restore_object(attrs,
+                                                             instance=instance)
 
     def to_native(self, obj):
         """Remove secret_access_key from response, it is write-only
@@ -74,7 +100,8 @@ class AccountSerializer(util.Logger, ImmutableMixin, serializers.HyperlinkedMode
                   'instances', 'updated', 'log_entries', 'url')
         immutable_fields = ('domain',)
 
-class ProjectSerializer(util.Logger, ImmutableMixin, serializers.HyperlinkedModelSerializer):
+class ProjectSerializer(util.Logger, ImmutableMixin,
+                        serializers.HyperlinkedModelSerializer):
     picked_instances = serializers.HyperlinkedRelatedField(
         many=True, view_name='instance-detail', read_only=True)
 
@@ -90,6 +117,25 @@ class ProjectSerializer(util.Logger, ImmutableMixin, serializers.HyperlinkedMode
     regions = CommaStringListField(source='_regions')
 
     log_entries = LogEntrySerializer(many=True, read_only=True)
+
+    def restore_object(self, attrs, instance=None):
+        # Cannot change filters if the project is in active state.
+        if instance and instance.state in ('freezing', 'thawing'):
+            errors = False
+
+            for field in ('pick_filter', 'save_filter', 'terminate_filter'):
+                if field in attrs and attrs[field] != getattr(instance, field):
+                    self._errors[field] = [
+                        'cannot be modified while project is %s' % (
+                            instance.state,)
+                        ]
+                    errors = True
+
+            if errors:
+                return
+
+        return super(ProjectSerializer, self).restore_object(attrs,
+                                                             instance=instance)
 
     class Meta:
         model = Project
@@ -111,5 +157,5 @@ class InstanceSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('account', 'instance_id', 'region', 'vpc_id',
                   'store', 'state', 'tags', 'url')
 
-    # def transform_tags(self, obj, value):
-    #     return {tag.key: tag.value for tag in obj.tags.all()}
+    def transform_tags(self, obj, value):
+        return {tag.key: tag.value for tag in obj.tags.all()}

@@ -140,3 +140,10 @@ def refresh_instance(pk):
              instance, instance.state)
 
     refresh_instance.apply_async([pk], countdown=REFRESH_INSTANCE_INTERVAL)
+
+@app.task()
+def log_error(task_id):
+    result = app.AsyncResult(task_id)
+    result.get(propagate=False)
+    log.error('Task failure: task %s, result %s, traceback:\n%s',
+              task_id, result.result, result.traceback)

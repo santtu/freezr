@@ -63,19 +63,20 @@ class PopulateEnvironment(Mixin, unittest.TestCase):
         """002-04 Wait until projects are running"""
         projects = [self.project_public, self.project_vpc]
         running = False
+        timeout = self.timeout()
 
-        while not running:
-            init = False
+        self.log.debug("timeout=%r not=%r", timeout, not timeout)
 
-            for project in projects:
-                r = self.client.get(project)
-                self.assertCode(r, 200)
-                self.log.debug("Project %s state: %s", project, r.data['state'])
-                init = r.data['state'] == 'init'
+        def running():
+            r = self.client.get('/project/')
+            self.assertCode(r, 200)
+            return all([p['state'] == 'running' for p in r.data])
 
-            running = not init
+        while not timeout and not running():
+            time.sleep(1)
 
-            if not running:
-                time.sleep(5)
+        r = self.client.get('/project/')
+        self.assertCode(r, 200)
+        self.assertTrue(running())
 
         self.log.debug('Projects %r now running', projects)

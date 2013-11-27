@@ -4,6 +4,7 @@ from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 import freezr.util as util
 
 TERMINAL_STATES = ('shutting-down', 'terminated')
+DRY_RUN = True # really only for debugging
 
 class AwsInterface(util.Logger):
     """This is the interface to AWS.
@@ -174,6 +175,9 @@ class AwsInterface(util.Logger):
         the instance metadata. We'll leave it lingering so humans can
         also see that result from AWS console, if needed."""
 
+        if DRY_RUN:
+            return
+
         conn = self.connect_ec2(instance.region)
         result = conn.terminate_instances(instance_ids=[instance.instance_id])
 
@@ -183,6 +187,9 @@ class AwsInterface(util.Logger):
         """Freeze the given instance."""
         self.log.debug("freeze_instance: %s, state %s",
                        instance, instance.state)
+
+        if DRY_RUN:
+            return
 
         if instance.state != 'running':
             # TODO: add suitable exception
@@ -198,6 +205,8 @@ class AwsInterface(util.Logger):
         """Thaw the given instance."""
         self.log.debug("thaw_instance: %s, state %s",
                        instance, instance.state)
+        if DRY_RUN:
+            return
 
         if instance.state != 'stopped':
             return

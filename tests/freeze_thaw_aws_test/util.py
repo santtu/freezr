@@ -6,6 +6,7 @@ import boto.ec2
 import freezr.util as util
 import logging
 import time
+import copy
 
 FILTER_KEYS = ('pick_filter', 'save_filter', 'terminate_filter')
 
@@ -49,13 +50,24 @@ class Client(util.Logger):
                   data=self._encode(data))
 
         self.log.debug("Response status: %s", r.status_code)
-        self.log.debug("Response headers: %r", r.headers)
+        #self.log.debug("Response headers: %r", r.headers)
 
         if (r.headers['content-type'] == 'application/json' and
             r.status_code not in (204,)):
-
-            self.log.debug("Response JSON: %s", r.text)
             r.data = json.loads(r.text)
+
+            # keep log_entries out of debug print in here, they are
+            # way too verbose
+            def prune(v):
+                if isinstance(v, list):
+                    return map(prune, v)
+                if isinstance(v, dict) and 'log_entries' in v:
+                    tmp = copy.copy(v)
+                    del tmp['log_entries']
+                    return tmp
+                return v
+
+            self.log.debug("Response JSON: %r", prune(r.data))
         else:
             self.log.debug("Response text: %r", r.text)
             r.data = None
@@ -117,9 +129,10 @@ class Mixin(util.Logger):
 
     def filter_saver(self, project):
         class inner(object):
-            def __init__(self, client, project):
+            def __init__(self, client, project, parent):
                 self.client = client
                 self.project = project
+                self.parent = parent
                 self.data = {}
 
             def __enter__(self):
@@ -128,15 +141,24 @@ class Mixin(util.Logger):
                 self.data = r.data
                 return self
 
-            def __exit__(self, *args):
-                filters = {key: self.data[key] for key in FILTER_KEYS}
-                r = self.client.patch(self.project, filters)
-                assert r.status_code == 200
+            def __exit__(self, type, value, traceback):
+                try:
+                    # No changes are possible while state is
+                    # transitioning, so check and wait for that.
+                    self.parent.until_project_in_state(self.project,
+                                                       ('running', 'frozen'))
+                    filters = {key: self.data[key] for key in FILTER_KEYS}
+                    r = self.client.patch(self.project, filters)
+                    self.parent.assertCode(r, 200)
+                except:
+                    log.exception('oops')
+                    if not type:
+                        raise
 
             def __getitem__(self, key):
                 return self.data[key]
 
-        return inner(self.client, project)
+        return inner(self.client, project, self)
 
     def resource_saver(self, data):
         """Save resource's `data`, which is assumed to contain a valid
@@ -144,25 +166,42 @@ class Mixin(util.Logger):
         data."""
 
         class inner(object):
-            def __init__(self, client, data):
+            def __init__(self, client, data, parent):
                 self.client = client
                 self.data = data
+                self.parent = parent
+                # kludge
+                self.is_project = 'pick_filter' in data
+                log.debug('resource_saver: data=%r', data)
 
             def __enter__(self):
                 return self
 
-            def __exit__(self, *args):
+            def __exit__(self, type, value, traceback):
+                if type:
+                    log.debug('resource_saver: exception exit: %s',
+                              value)
+
                 try:
-                    r = self.client.put(self.data['url'], self.data)
+                    if self.is_project:
+                        self.parent.until_project_in_state(
+                            data['url'],
+                            ('running', 'frozen'))
+
+                    log.debug('resource_saver: restoring %s: %r',
+                              data['url'], self.data)
+
+                    r = self.client.put(data['url'], self.data)
+                    self.parent.assertCode(r, 200)
                 except:
                     log.exception('oops')
-
-                assert r.status_code == 200
+                    if not type:
+                        raise
 
             def __getitem__(self, key):
                 return self.data[key]
 
-        return inner(self.client, data)
+        return inner(self.client, data, self)
 
     def match(self, data, pattern):
         keys = pattern.keys()
@@ -170,7 +209,8 @@ class Mixin(util.Logger):
 
         for datum in data:
             if set([datum.get(field) for field in keys]) == values:
-                self.log.debug("Match %r => %r", pattern, datum)
+                self.log.debug("Match %r => %r",
+                               pattern, self.cleanup(datum))
                 return datum
 
         self.fail('Could not find datum matching %r from %r' % (
@@ -187,6 +227,9 @@ class Mixin(util.Logger):
                     assert False
 
                 return time.time() >= self.until
+
+            def __nonzero__(self):
+                return self.__bool__()
 
         return inner(time.time() + secs, fail)
 
@@ -210,6 +253,58 @@ class Mixin(util.Logger):
             self._cache[key] = self.match(r.data, pattern)['url']
 
         return self._cache.get(key)
+
+    def project_state(self, project):
+        """Return `project`'s current state"""
+        r = self.client.get(project)
+        self.assertCode(r, 200)
+        return r.data['state']
+
+    def project_in_state(self, project, states):
+        """Return true if `project` is in one of `states`"""
+        return self.project_state(project) in states
+
+    def until_project_in_state(self, project, states, timeout=None):
+        """Wait until project is in one of `states`, with optionally
+        specified timeout object of `timeout`. If `timeout` is not
+        given, then this will use a default timeout.
+
+        The default timeout is a failing one (self.timeout(fail=True))
+        and will cause an exception if timeout is exceeded.
+
+        If a non-failing timeout is given, this will return True if
+        project is in given `states` at end of timeout, False
+        otherwise."""
+        timeout = timeout or self.timeout(fail=True)
+
+        while not timeout and not self.project_in_state(project, states):
+            time.sleep(2)
+
+        return self.project_in_state(project, states)
+
+    def until_project_not_in_state(self, project, states, timeout=None):
+        """See `until_project_in_state`, this is otherwise identical
+        except that it waits until project is **not** in one of the
+        given states. (And returns True if project is **not** in given
+        state at end of timeout.)"""
+        timeout = timeout or self.timeout(fail=True)
+
+        while not timeout and self.project_in_state(project, states):
+            time.sleep(2)
+
+        return not self.project_in_state(project, states)
+
+    def cleanup(self, data):
+        """Remove entries from data meant for POST/PUT/PATCH
+        operation. This removes read-only fields like `log_entries`
+        which are useless to send."""
+        tmp = copy.copy(data)
+        for field in ('log_entries', 'instances',
+                      'picked_instances', 'saved_instances',
+                      'terminated_instances', 'skipped_instances'):
+            if field in tmp:
+                del tmp[field]
+        return tmp
 
     @property
     def domain(self):

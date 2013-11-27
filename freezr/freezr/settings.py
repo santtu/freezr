@@ -23,7 +23,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 SECRET_KEY = 'o46@o6k5p#&kw(=+-d$=5-m1!7i&weju-e_pdn&d4rz27&__@='
 
 # SECURITY WARNING: don't run with debug turned on in production!
-if False:
+if True:
     DEBUG = True
     TEMPLATE_DEBUG = True
     ALLOWED_HOSTS = []
@@ -70,6 +70,8 @@ WSGI_APPLICATION = 'freezr.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/1.6/ref/settings/#databases
 
+ATOMIC_REQUESTS = True
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -102,6 +104,7 @@ STATIC_URL = '/static/'
 
 BROKER_URL = 'amqp://guest@localhost//'
 CELERY_TIMEZONE = 'UTC'
+CELERY_RESULT_BACKEND = 'amqp'
 CELERYBEAT_SCHEDULER = "djcelery.schedulers.DatabaseScheduler"
 CELERY_IMPORTS = ('freezr.celery', 'freezr.celery.tasks')
 CELERYD_LOG_FORMAT = '[%(asctime)s: %(levelname)s/%(processName)s-%(process)d] %(message)s'
@@ -123,6 +126,9 @@ if not TESTING:
         'formatters': {
             'simple': {
                 'format': FORMATTER_SIMPLE_FORMAT,
+                },
+            'sql': {
+                'format': FORMATTER_SIMPLE_FORMAT + " [%(duration)ss]",
                 }
             },
         'handlers': {
@@ -130,6 +136,11 @@ if not TESTING:
                 'level': 'DEBUG',
                 'class': 'logging.StreamHandler',
                 'formatter': 'simple',
+                },
+            'sql': {
+                'level': 'DEBUG',
+                'class': 'logging.StreamHandler',
+                'formatter': 'sql',
                 }
             },
         'loggers': {
@@ -137,7 +148,12 @@ if not TESTING:
                 'handlers': ['console'],
                 'level': 'DEBUG',
                 'propagate': False,
-                }
+                },
+            # 'django.db.backends': {
+            #     'handlers': ['sql'],
+            #     'level': 'DEBUG',
+            #     'propagate': False,
+            #     },
             }
         }
 

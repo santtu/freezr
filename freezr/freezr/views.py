@@ -44,16 +44,21 @@ class AccountViewSet(BaseViewSet):
                             status=status.HTTP_403_FORBIDDEN)
 
         # use older_than to cause some throttling
-        async = tasks.refresh_account.delay(pk, older_than=30)
+        async = tasks.refresh_account.apply_async([pk], {'older_than': 30},
+                                                  link_error=tasks.log_error.s())
         return Response({'message': 'Project refresh started',
                          'operation': async.id},
                         status=status.HTTP_202_ACCEPTED)
 
     def post_save(self, obj, **kwargs):
-        super(AccountViewSet, self).post_save(obj, **kwargs)
-        self.log.debug("post_save: triggering account %s refresh", obj)
-        tasks.refresh_account.apply_async([obj.id], {'older_than': 0},
-                                          countdown=5)
+        try:
+            super(AccountViewSet, self).post_save(obj, **kwargs)
+            self.log.debug("post_save: triggering account %s refresh", obj)
+            tasks.refresh_account.apply_async([obj.id], {'older_than': 0},
+                                              countdown=5,
+                                              link_error=tasks.log_error.s())
+        except:
+            self.log.exception('wtf?')
 
 class ProjectViewSet(BaseViewSet):
     model = Project
@@ -72,6 +77,11 @@ class ProjectViewSet(BaseViewSet):
                        self, request, pk);
         project = Project.objects.get(pk=pk)
 
+        self.log.debug("freeze: project.state=%r project.account=%d "
+                       "project.account.active=%r",
+                       project.state,
+                       project.account.id, project.account.active)
+
         if not project.account.active:
             return Response({'error': 'Account is inactive'},
                             status=status.HTTP_403_FORBIDDEN)
@@ -87,7 +97,7 @@ class ProjectViewSet(BaseViewSet):
             tasks.refresh_account.si(project.account.id, older_than=0) |
             tasks.freeze_project.si(project.id) |
             tasks.refresh_account.si(project.account.id, older_than=0)
-            ).delay()
+            ).apply_async(link_error=tasks.log_error.s())
 
         #tasks.freeze_project.delay(project.id)
         self.log.debug("freeze: async=%r", async)
@@ -117,9 +127,9 @@ class ProjectViewSet(BaseViewSet):
             tasks.refresh_account.si(project.account.id, older_than=0) |
             tasks.thaw_project.si(project.id) |
             tasks.refresh_account.si(project.account.id, older_than=0)
-            ).delay()
+            ).apply_async(link_error=tasks.log_error.s())
 
-        self.log.debug("freeze: async=%r", async)
+        self.log.debug("thaw: async=%r", async)
 
         return Response({'message': 'Project thawing started',
                          'operation': async.id},

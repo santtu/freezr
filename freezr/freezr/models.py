@@ -160,6 +160,10 @@ class Account(BaseModel):
     def __unicode__(self):
         return self.name + "/" + self.access_key
 
+    # This may be a long-lived transaction, but it shouldn't matter
+    # since there shouldn't be multiple updaters on an account during
+    # refresh.
+    @transaction.atomic
     def refresh(self, aws, regions=None):
         """Refresh this account contents, updating list of tags,
         instances and EIPs in this account in the given `regions`. If
@@ -174,19 +178,18 @@ class Account(BaseModel):
         started = timezone.now()
 
         for region in regions:
-            try:
-                with transaction.atomic():
-                    (t, a, d) = aws.refresh_region(self, region)
-                    self.updated = timezone.now()
-                    self.save()
-                    self.log.debug('%s: Done refresh with %r, '
-                                   'updated %s, t/a/d %d/%d/%d',
-                                   self, aws, self.updated, t, a, d)
-                    total, added, deleted = total + t, added + a, deleted + d
-            except IntegrityError:
-                self.log.exception("Error while updating account %s in "
-                                   "region %s",
-                                   self, region)
+            (t, a, d) = aws.refresh_region(self, region)
+            self.updated = timezone.now()
+
+            # Don't use .save() here, even as we're in atomic
+            # transaction our self values are still outdated,
+            # from the time celery task read us, so write only
+            # the field that is absolutely required.
+            self.save(update_fields=['updated'])
+            self.log.debug('%s: Done refresh with %r, '
+                           'updated %s, t/a/d %d/%d/%d',
+                           self, aws, self.updated, t, a, d)
+            total, added, deleted = total + t, added + a, deleted + d
 
             # TODO: catch other known exceptions. As well in there,
             # convert those into known exceptions.
@@ -208,9 +211,9 @@ class Account(BaseModel):
         for project in self.projects.filter(state='init').all():
             if project.picked_instances or project.saved_instances:
                 project.log_entry('Moving {0} from initializing to '
-                                  'running state'.format(project))
+                                      'running state'.format(project))
                 project.state = 'running'
-                project.save()
+                project.save(update_fields=['state'])
 
     @property
     def regions(self):
@@ -320,8 +323,8 @@ class Instance(BaseModel):
     def _log_entry(self, l):
         l.account = self.account
 
+    @transaction.atomic
     def refresh(self, aws):
-        with transaction.atomic():
             aws.refresh_instance(self)
 
         # Do not do anything after this, we might have been deleted.
@@ -484,7 +487,7 @@ class Project(BaseModel):
         started = timezone.now()
 
         self.state = 'freezing'
-        self.save()
+        self.save(update_fields=['state'])
 
         for instance in terminate_instances:
             self.log_entry('Terminating instance {0}'.format(instance))
@@ -497,7 +500,7 @@ class Project(BaseModel):
         # TODO: EIP information storage
 
         self.state = 'frozen'
-        self.save()
+        self.save(update_fields=['state'])
 
         elapsed = timezone.now() - started
 
@@ -527,14 +530,14 @@ class Project(BaseModel):
         started = timezone.now()
 
         self.state = 'thawing'
-        self.save()
+        self.save(update_fields=['state'])
 
         for instance in saved_instances:
             self.log_entry('Thawing instance {0}'.format(instance))
             aws.thaw_instance(instance)
 
         self.state = 'running'
-        self.save()
+        self.save(update_fields=['state'])
 
         elapsed = timezone.now() - started
 
