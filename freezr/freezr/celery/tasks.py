@@ -8,7 +8,9 @@ from celery.task.schedules import crontab
 import logging
 import freezr.aws
 from celery import Celery
-
+from celery.exceptions import Retry
+from functools import wraps
+from django.db.utils import OperationalError
 
 log = logging.getLogger('freezr.tasks')
 # shutting-down is a transition, but from our point of view the
@@ -27,8 +29,20 @@ def debug_task(self):
 # if an entry could not be updated (errors, failure in connection)
 # then it'll be retried within 10 minutes.
 
+def retry(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except OperationalError as ex:
+            log.debug('Retry on database error', exc_info=True)
+            raise Retry(str(ex))
+
+    return wrapper
+
 @app.task()
 @periodic_task(run_every=crontab(minute='*/10'))
+@retry
 def refresh(older_than=3600, regions=None):
     """Refreshes all accounts that have not been updated in
     `older_than` seconds."""
@@ -47,6 +61,7 @@ def refresh(older_than=3600, regions=None):
                       account, older_than)
 
 @app.task()
+@retry
 def refresh_account(pk, regions=None, older_than=None):
     """Refresh the given `pk` account, in given `regions`. If regions
     is None then all regions for the account will be checked. The
@@ -90,6 +105,7 @@ def refresh_account(pk, regions=None, older_than=None):
                                          countdown=REFRESH_INSTANCE_INTERVAL)
 
 @app.task()
+@retry
 def freeze_project(pk):
     try:
         project = Project.objects.get(id=pk)
@@ -104,6 +120,7 @@ def freeze_project(pk):
     project.freeze(aws=freezr.aws.AwsInterface(project.account))
 
 @app.task()
+@retry
 def thaw_project(pk):
     try:
         project = Project.objects.get(id=pk)
@@ -123,6 +140,7 @@ def thaw_project(pk):
 # let's do it regardless of account active state.
 
 @app.task()
+@retry
 def refresh_instance(pk):
     def get():
         try:
