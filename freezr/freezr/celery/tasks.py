@@ -53,7 +53,12 @@ def refresh_account(pk, regions=None, older_than=None):
     `older_than` argument works like for refresh(), except by default
     it is not set."""
 
-    account = Account.objects.get(id=pk)
+    try:
+        account = Account.objects.get(id=pk)
+    except Account.DoesNotExist:
+        log.error('Refresh Account: Unexistent account %d', pk)
+        return
+
     log.info('Refresh Account: %r, regions=%r', account, regions)
 
     if not account.active:
@@ -86,7 +91,11 @@ def refresh_account(pk, regions=None, older_than=None):
 
 @app.task()
 def freeze_project(pk):
-    project = Project.objects.get(id=pk)
+    try:
+        project = Project.objects.get(id=pk)
+    except Project.DoesNotExist:
+        log.error('Freeze Project : Unexistent project %d', pk)
+
     log.info('Freeze Project: %r', project)
 
     if not project.account.active:
@@ -96,7 +105,11 @@ def freeze_project(pk):
 
 @app.task()
 def thaw_project(pk):
-    project = Project.objects.get(id=pk)
+    try:
+        project = Project.objects.get(id=pk)
+    except Project.DoesNotExist:
+        log.error('Thaw Project : Unexistent project %d', pk)
+
     log.info('Thaw Project: %r', project)
 
     if not project.account.active:
@@ -115,7 +128,8 @@ def refresh_instance(pk):
         try:
             return Instance.objects.get(id=pk)
         except Instance.DoesNotExist:
-            return None
+            log.error('Refresh Instance: Unexistent instance %d', pk)
+            return
 
     instance = get()
     if not instance:
