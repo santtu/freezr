@@ -4,7 +4,7 @@ from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 import freezr.util as util
 
 TERMINAL_STATES = ('shutting-down', 'terminated')
-DRY_RUN = True # really only for debugging
+DRY_RUN = False # really only for debugging
 
 class AwsInterface(util.Logger):
     """This is the interface to AWS.

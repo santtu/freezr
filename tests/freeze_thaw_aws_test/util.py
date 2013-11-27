@@ -219,12 +219,14 @@ class Mixin(util.Logger):
     def timeout(self, secs=300, fail=True):
         class inner(object):
             def __init__(self, until, fail):
+                self.start = time.time()
                 self.until = until
                 self.fail = fail
 
             def __bool__(self):
                 if fail and time.time() >= self.until:
-                    assert False
+                    assert False, "Timed out after %f seconds" % (
+                        time.time() - self.start)
 
                 return time.time() >= self.until
 

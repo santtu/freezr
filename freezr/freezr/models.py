@@ -521,7 +521,7 @@ class Project(BaseModel):
         self.log.debug("thaw: self=%r", self)
 
         # Don't thaw instances that are actually running. User might
-        # have added those manuall to the environment after freeze.
+        # have added those manually to the environment after freeze.
         saved_instances = [i for i in self.saved_instances if i.state == 'stopped']
 
         self.log.debug("thaw: self=%r saved_instances=%r",

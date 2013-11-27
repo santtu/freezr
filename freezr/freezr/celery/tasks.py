@@ -7,7 +7,7 @@ from celery.decorators import periodic_task
 from celery.task.schedules import crontab
 import logging
 import freezr.aws
-from celery import Celery
+from celery import Celery, group
 from celery.exceptions import Retry
 from functools import wraps
 from django.db.utils import OperationalError
@@ -24,14 +24,16 @@ REFRESH_INSTANCE_INTERVAL = 5
 def debug_task(self):
     print('Request: {0!r}'.format(self.request))
 
-# The refresh task is scheduled to run every 10 minutes, but by
-# default we'll update entries only older than 1 hour. This means that
-# if an entry could not be updated (errors, failure in connection)
-# then it'll be retried within 10 minutes.
-
 def retry(func):
+    """Decorator to automatically retry the task when certain
+    exceptions (database rollbacks, locks etc.) are encountered, as we
+    have a very strong expectation that these will work if retried.
+
+    Note to self: Be careful, you don't want to retry things caused by
+    program errors, they won't go away on repeats."""
     @wraps(func)
     def wrapper(*args, **kwargs):
+        log.debug("wrapper call for %s: args=%r kwargs=%r", func, args, kwargs)
         try:
             return func(*args, **kwargs)
         except OperationalError as ex:
@@ -39,6 +41,20 @@ def retry(func):
             raise Retry(str(ex))
 
     return wrapper
+
+def dispatch(task, **kwargs):
+    """Dispatches the given task with default error and result
+    handlers. Returns the async object."""
+    async = task.apply_async(link_error=log_error.s(),
+                             **kwargs)
+
+    log.debug('Dispatched %r: %s (%s)', task, async, async.state)
+    return async
+
+# The refresh task is scheduled to run every 10 minutes, but by
+# default we'll update entries only older than 1 hour. This means that
+# if an entry could not be updated (errors, failure in connection)
+# then it'll be retried within 10 minutes.
 
 @app.task()
 @periodic_task(run_every=crontab(minute='*/10'))
@@ -54,11 +70,14 @@ def refresh(older_than=3600, regions=None):
 
     for account in Account.objects.filter(active=True).all():
         if account.updated is None or account.updated <= limit:
-            tasks.add(refresh_account.delay(account.id))
+            tasks.add(refresh_account.si(account.id))
         else:
             log.debug('Account %r update newer than %d seconds, '
                       'not refreshing',
                       account, older_than)
+
+    dispatch(group(*tasks))
+
 
 @app.task()
 @retry
@@ -101,8 +120,8 @@ def refresh_account(pk, regions=None, older_than=None):
                       'state "%s", scheduling refresh',
                       instance, instance.state)
 
-            refresh_instance.apply_async([instance.id],
-                                         countdown=REFRESH_INSTANCE_INTERVAL)
+            dispatch(refresh_instance.si(instance.id),
+                     countdown=REFRESH_INSTANCE_INTERVAL)
 
 @app.task()
 @retry
@@ -171,7 +190,9 @@ def refresh_instance(pk):
              'a transitioning state "%s", rescheduling',
              instance, instance.state)
 
-    refresh_instance.apply_async([pk], countdown=REFRESH_INSTANCE_INTERVAL)
+    dispatch(refresh_instance.si(pk),
+             countdown=REFRESH_INSTANCE_INTERVAL)
+
 
 @app.task()
 def log_error(task_id):

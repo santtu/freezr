@@ -1,6 +1,6 @@
 from freezr.models import *
 from freezr.serializers import *
-import freezr.celery.tasks as tasks
+from freezr.celery.tasks import dispatch, refresh_account, freeze_project, thaw_project
 from django.http import Http404
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -18,7 +18,8 @@ class BaseViewSet(util.Logger, viewsets.ModelViewSet):
         # cases up the chain.
         if not isinstance(exc, (MethodNotAllowed, Http404)):
             self.log.exception('Handling request %s %s',
-                               self.request.method, self.request.get_full_path())
+                               self.request.method,
+                               self.request.get_full_path())
 
         return super(BaseViewSet, self).handle_exception(exc)
 
@@ -44,19 +45,19 @@ class AccountViewSet(BaseViewSet):
                             status=status.HTTP_403_FORBIDDEN)
 
         # use older_than to cause some throttling
-        async = tasks.refresh_account.apply_async([pk], {'older_than': 30},
-                                                  link_error=tasks.log_error.s())
+        async = dispatch(refresh_account.si(pk, older_than=30))
         return Response({'message': 'Project refresh started',
                          'operation': async.id},
                         status=status.HTTP_202_ACCEPTED)
 
     def post_save(self, obj, **kwargs):
         try:
-            super(AccountViewSet, self).post_save(obj, **kwargs)
-            self.log.debug("post_save: triggering account %s refresh", obj)
-            tasks.refresh_account.apply_async([obj.id], {'older_than': 0},
-                                              countdown=5,
-                                              link_error=tasks.log_error.s())
+            ret = super(AccountViewSet, self).post_save(obj, **kwargs)
+            async = dispatch(refresh_account.si(obj.id, older_than=0),
+                             countdown=5)
+            self.log.debug("post_save: triggering account %s refresh, "
+                           "async %s", obj, async)
+            return ret
         except:
             self.log.exception('wtf?')
 
@@ -87,22 +88,22 @@ class ProjectViewSet(BaseViewSet):
                             status=status.HTTP_403_FORBIDDEN)
 
         if project.state != 'running':
-            return Response({'error': 'Project state is not valid for freezing'},
+            return Response({'error':
+                             'Project state is not valid for freezing'},
                             status=status.HTTP_409_CONFLICT)
 
         # Do a forced refresh on the account just before freeze so we
         # have as up-to-date information as possible. (Freeze operates
         # based on our knowledge of the account.)
-        async = (
-            tasks.refresh_account.si(project.account.id, older_than=0) |
-            tasks.freeze_project.si(project.id) |
-            tasks.refresh_account.si(project.account.id, older_than=0)
-            ).apply_async(link_error=tasks.log_error.s())
+        async = dispatch(
+            (refresh_account.si(project.account.id, older_than=0) |
+             freeze_project.si(project.id) |
+             refresh_account.si(project.account.id, older_than=0))
+            )
 
-        #tasks.freeze_project.delay(project.id)
         self.log.debug("freeze: async=%r", async)
 
-        return Response({'error': 'Project freezing started',
+        return Response({'message': 'Project freezing started',
                          'operation': async.id},
                         status=status.HTTP_202_ACCEPTED)
 
@@ -118,16 +119,17 @@ class ProjectViewSet(BaseViewSet):
                             status=status.HTTP_403_FORBIDDEN)
 
         if project.state != 'frozen':
-            return Response({'error': 'Project state is not valid for thawing'},
+            return Response({'error':
+                             'Project state is not valid for thawing'},
                             status=status.HTTP_409_CONFLICT)
 
         # Again, do a forced refresh before starting the thaw
         # operation.
-        async = (
-            tasks.refresh_account.si(project.account.id, older_than=0) |
-            tasks.thaw_project.si(project.id) |
-            tasks.refresh_account.si(project.account.id, older_than=0)
-            ).apply_async(link_error=tasks.log_error.s())
+        async = dispatch(
+            (refresh_account.si(project.account.id, older_than=0) |
+             thaw_project.si(project.id) |
+             refresh_account.si(project.account.id, older_than=0))
+            )
 
         self.log.debug("thaw: async=%r", async)
 

@@ -78,7 +78,7 @@ env_setup
     $manage loaddata $test_dir/fixtures.yaml) >>freezr.log 2>&1
 
 # Celery ..
-$manage celeryd -B -E -l debug >>celeryd.log 2>&1 &
+$manage celeryd -B -E -l debug --pidfile celeryd.pid >>celeryd.log 2>&1 &
 check_add $!
 
 export AWS_ACCESS_KEY_ID=$access_key

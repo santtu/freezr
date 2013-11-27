@@ -76,6 +76,13 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        # this is for testing db only, some queries to aws can last
+        # multiple seconds, sqlite locks the whole db for updates, and
+        # our Account.refresh uses a big hunking transaction lock
+        # .. which with a real db would not be such a big problem, but
+        # with sqlite will cause the default 5 second timeout to
+        # .. time out
+        'OPTIONS': { 'timeout': 30 },
     }
 }
 
@@ -105,9 +112,12 @@ STATIC_URL = '/static/'
 BROKER_URL = 'amqp://guest@localhost//'
 CELERY_TIMEZONE = 'UTC'
 CELERY_RESULT_BACKEND = 'amqp'
+CELERY_TASK_RESULT_EXPIRES = 600 # 10 minutes
 CELERYBEAT_SCHEDULER = "djcelery.schedulers.DatabaseScheduler"
 CELERY_IMPORTS = ('freezr.celery', 'freezr.celery.tasks')
-CELERYD_LOG_FORMAT = '[%(asctime)s: %(levelname)s/%(processName)s-%(process)d] %(message)s'
+CELERYD_LOG_FORMAT = '[%(asctime)s: %(levelname)s/%(name)s-%(process)d] %(message)s'
+CELERY_TASK_PUBLISH_RETRY = True
+CELERY_TRACK_STARTED = True
 
 # add annotations for rate limit etc.
 
@@ -149,11 +159,21 @@ if not TESTING:
                 'level': 'DEBUG',
                 'propagate': False,
                 },
-            # 'django.db.backends': {
-            #     'handlers': ['sql'],
-            #     'level': 'DEBUG',
-            #     'propagate': False,
-            #     },
+            'django.db.backends': {
+                'handlers': ['sql'],
+                'level': 'INFO',
+                'propagate': False,
+                },
+            'boto': {
+                'handlers': ['console'],
+                'level': 'INFO',
+                'propagate': False,
+                },
+            'celery.beat': {
+                'handlers': ['console'],
+                'level': 'INFO',
+                'propagate': False,
+                },
             }
         }
 
