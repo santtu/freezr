@@ -45,10 +45,10 @@ class AccountSerializer(util.Logger, ImmutableMixin, serializers.HyperlinkedMode
     log_entries = LogEntrySerializer(many=True, read_only=True)
     secret_key = serializers.WritableField(required=False)
 
-    def restore_fields(self, data, files):
-        self.log.debug('restore_fields: data=%r files=%r',
-                       data, files)
-        return super(AccountSerializer, self).restore_fields(data, files)
+    # def restore_fields(self, data, files):
+    #     self.log.debug('restore_fields: data=%r files=%r',
+    #                    data, files)
+    #     return super(AccountSerializer, self).restore_fields(data, files)
 
     # def restore_object(self, attrs, instance=None):
     #     ret = super(AccountSerializer, self).restore_object(attrs, instance=instance)
@@ -56,9 +56,9 @@ class AccountSerializer(util.Logger, ImmutableMixin, serializers.HyperlinkedMode
     #                    attrs, instance, ret)
     #     return ret
 
-    def from_native(self, data, files):
-        self.log.debug("from_native: data=%r files=%r", data, files)
-        return super(AccountSerializer, self).from_native(data, files)
+    # def from_native(self, data, files):
+    #     self.log.debug("from_native: data=%r files=%r", data, files)
+    #     return super(AccountSerializer, self).from_native(data, files)
 
     def to_native(self, obj):
         """Remove secret_access_key from response, it is write-only
@@ -111,5 +111,5 @@ class InstanceSerializer(serializers.HyperlinkedModelSerializer):
         fields = ('account', 'instance_id', 'region', 'vpc_id',
                   'store', 'state', 'tags', 'url')
 
-    def transform_tags(self, obj, value):
-        return {tag.key: tag.value for tag in obj.tags.all()}
+    # def transform_tags(self, obj, value):
+    #     return {tag.key: tag.value for tag in obj.tags.all()}

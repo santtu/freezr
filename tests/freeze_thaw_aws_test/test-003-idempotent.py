@@ -70,32 +70,8 @@ class IdempotentTests(Mixin, unittest.TestCase):
                 ((None, 'true', 'true'), (4, 4, 0, 0)),
                 ))
 
-    def test03AccountRefresh(self):
-        """003-03 Refresh an account via API call"""
-
-        r = self.client.get(self.account)
-        updated = r.data['updated']
-
-        until = time.time() + 300
-
-        while True:
-            if time.time() > until:
-                self.fail('Timed out waiting for account to update')
-
-            r = self.client.post(self.account + "refresh/")
-            self.assertCode(r, 202)
-
-            time.sleep(2)
-
-            r = self.client.get(self.account)
-            if r.data['updated'] > updated:
-                break
-
-        self.log.debug("Account %s original update %s, now %s",
-                       self.account, updated, r.data['updated'])
-
-    def test04AccountUpdateWithoutSecret(self):
-        """003-04 Account updates without secret key"""
+    def test03AccountUpdateWithoutSecret(self):
+        """003-03 Account updates without secret key"""
         # It is possible to update account without the secret key, in
         # which case it is left untouched
         r = self.client.get(self.account)
@@ -109,8 +85,8 @@ class IdempotentTests(Mixin, unittest.TestCase):
         r = self.client.patch(self.account, {})
         self.assertCode(r, 200)
 
-    def test05InvalidAccountUpdate(self):
-        """003-05 Try invalid account update operations"""
+    def test04InvalidAccountUpdate(self):
+        """003-04 Try invalid account update operations"""
         data = self.client.get(self.account).data
 
         # Post on existing object
@@ -135,8 +111,8 @@ class IdempotentTests(Mixin, unittest.TestCase):
         self.assertCode(r, 200)
         self.assertEqual(r.data['domain'], data['domain'])
 
-    def test06InvalidProjectUpdate(self):
-        """003-06 Try invalid project update operations"""
+    def test05InvalidProjectUpdate(self):
+        """003-05 Try invalid project update operations"""
         project = self.project_public
         data = self.client.get(project).data
 
@@ -161,3 +137,126 @@ class IdempotentTests(Mixin, unittest.TestCase):
         r = self.client.patch(project, {'account': self.dummy_account})
         self.assertCode(r, 200)
         self.assertEqual(r.data['account'], data['account'])
+
+    def test06AccountRefresh(self):
+        """003-06 Refresh an account via API call"""
+
+        r = self.client.get(self.account)
+        updated = r.data['updated']
+
+        timeout = self.timeout(300)
+        until = time.time() + 300
+
+        while not timeout:
+            if time.time() > until:
+                self.fail('Timed out waiting for account to update')
+
+            r = self.client.post(self.account + "refresh/")
+            self.assertCode(r, 202)
+
+            time.sleep(2)
+
+            r = self.client.get(self.account)
+            if r.data['updated'] > updated:
+                break
+
+        self.log.debug("Account %s original update %s, now %s",
+                       self.account, updated, r.data['updated'])
+
+    def test07DisabledAccountRefresh(self):
+        """003-07 Refresh a disabled account via API call"""
+
+        r = self.client.get(self.account)
+        self.assertCode(r, 200)
+        self.assertTrue(r.data['active'])
+        updated = r.data['updated']
+
+        with self.resource_saver(r.data):
+            r = self.client.patch(self.account, {'active': False})
+            self.assertCode(r, 200)
+            self.assertFalse(r.data['active'])
+
+            r = self.client.post(self.account + "refresh/")
+            self.assertCode(r, 403)
+            self.assertTrue('error' in r.data)
+
+    def test08DisabledAccountProjectFreeze(self):
+        """003-08 Freeze project on disabled account"""
+        r = self.client.get(self.account)
+        self.assertCode(r, 200)
+
+        with self.resource_saver(r.data):
+            r = self.client.patch(self.account, {'active': False})
+            self.assertCode(r, 200)
+            self.assertFalse(r.data['active'])
+
+            r = self.client.post(self.project_public + "freeze/")
+            self.assertCode(r, 403)
+            self.assertTrue('error' in r.data)
+
+    # Note: Cannot do similar test for thaw here since it requires
+    # freezing first. See 004 tests.
+
+    def test09ThawOnRunningProject(self):
+        """003-09 Thaw a non-frozen project"""
+        r = self.client.get(self.project_public)
+        self.assertCode(r, 200)
+        self.assertEqual(r.data['state'], 'running')
+
+        r = self.client.post(self.project_public + "thaw/")
+        self.assertCode(r, 409)
+        self.assertTrue('error' in r.data)
+
+    # Note: Similar argument for freeze on frozen project here. See 004.
+
+    def test00FreezeEmptyProject(self):
+        """003-10 Freeze an empty project"""
+
+        project = self.project_vpc
+
+        # validate directly from aws
+        # ignore terminated, they can be from previous tests
+        states = [i.state for i in self.ec2.get_only_instances() if i.state not in ('terminated', 'shutting-down')]
+        self.log.debug("states: %r", states)
+        self.assertTrue(all([s == 'running' for s in states]))
+        self.assertEqual(len(states), 6)
+
+        with self.filter_saver(project) as data:
+            self.assertEqual(data['state'], 'running')
+            try:
+                r = self.client.patch(project, {'pick_filter':'false'})
+                self.assertCode(r, 200)
+                self.assertEqual(r.data['picked_instances'], [])
+                self.assertEqual(r.data['terminated_instances'], [])
+                self.assertEqual(r.data['saved_instances'], [])
+                self.assertEqual(r.data['skipped_instances'], [])
+
+                r = self.client.post(project + "freeze/")
+                self.assertCode(r, 202)
+
+                timeout = self.timeout()
+
+                while not timeout and self.pstate(project) != 'frozen':
+                    time.sleep(1)
+
+            finally:
+                timeout = self.timeout()
+                while (not timeout and
+                       self.pstate(project) not in ('running', 'frozen')):
+                    time.sleep(1)
+
+                self.client.post(project + "thaw/")
+
+                timeout = self.timeout()
+
+                while not timeout and self.pstate(project) != 'running':
+                    time.sleep(1)
+
+                # XXX there's timing problems here
+                # XXX should really disable project updates while it is transitioning
+                time.sleep(30)
+
+    def pstate(self, project):
+        r = self.client.get(project)
+        self.assertCode(r, 200)
+        return r.data['state']

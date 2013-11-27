@@ -42,7 +42,7 @@ function check {
 
 function check_add {
     pid="$1"
-    pids="$pids $pid"
+    pids="$pid $pids"
 
     if [ -z "$pid" ]; then
 	echo "No child detected ..."
@@ -73,9 +73,9 @@ export DJANGO_SETTINGS_MODULE=freeze_thaw_aws_test.settings
 
 env_setup
 
-rm -f db.sqlite3 && \
+(rm -f db.sqlite3 && \
     $manage syncdb --noinput && \
-    $manage loaddata $test_dir/fixtures.yaml >>freezr.log 2>&1
+    $manage loaddata $test_dir/fixtures.yaml) >>freezr.log 2>&1
 
 # Celery ..
 $manage celeryd -B -E -l debug >>celeryd.log 2>&1 &
@@ -90,6 +90,8 @@ $manage runserver 9000 >>freezr.log 2>&1 &
 # can't use $! here, see https://code.djangoproject.com/ticket/19137
 # the extra sleep is *required*
 sleep 1; check_add $(pgrep -f 'runserver 9000')
+
+echo "Starting test suite, child pids are $pids"
 
 # finally we can run nosetests -- use -x due to interdependence of
 # tests (if one fails, others might block etc.)

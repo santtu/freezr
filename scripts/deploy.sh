@@ -15,11 +15,23 @@ function running {
     return $?
 }
 
+function state {
+    aws --output json cloudformation describe-stack-events --max-items 1 --stack-name $stack | json '.StackEvents[0].ResourceStatus'
+    return $?
+}
+
 if [ -n "$stop" ]; then
     if running; then
 	aws cloudformation delete-stack --stack-name $stack
-    fi
 
+	echo -n 'Terminating stack '
+	while running
+	do
+	    echo -n '.'
+	    sleep 1
+	done
+	echo " done"
+    fi
     exit 0
 fi
 
@@ -38,5 +50,31 @@ if running; then
     done
     echo " done"
 fi
+
 aws cloudformation create-stack --stack-name $stack --parameters 'ParameterKey=KeyName,ParameterValue=freezr' --template-body file://$cfn_temp
+
+echo -n "Stack provisioned, waiting for completion "
+
+while true
+do
+    echo -n '.'
+
+    s=$(state)
+
+    case $(state) in
+	CREATE_COMPLETE)
+	    echo ' done'
+	    exit 0
+	    ;;
+	CREATE_IN_PROGRESS)
+	    ;;
+	*)
+	    echo "error\nERROR: Stack in unexpected state $(state), stopping"
+	    exit 1
+	    ;;
+    esac
+
+    sleep 1
+done
+
 exit 0

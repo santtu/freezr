@@ -23,7 +23,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 SECRET_KEY = 'o46@o6k5p#&kw(=+-d$=5-m1!7i&weju-e_pdn&d4rz27&__@='
 
 # SECURITY WARNING: don't run with debug turned on in production!
-if True:
+if False:
     DEBUG = True
     TEMPLATE_DEBUG = True
     ALLOWED_HOSTS = []
@@ -48,8 +48,8 @@ INSTALLED_APPS = (
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'djcelery',
     'freezr',
+    'djcelery',
     'django_nose',
 )
 
@@ -103,7 +103,8 @@ STATIC_URL = '/static/'
 BROKER_URL = 'amqp://guest@localhost//'
 CELERY_TIMEZONE = 'UTC'
 CELERYBEAT_SCHEDULER = "djcelery.schedulers.DatabaseScheduler"
-CELERY_IMPORTS = ('freezr.tasks',)
+CELERY_IMPORTS = ('freezr.celery', 'freezr.celery.tasks')
+CELERYD_LOG_FORMAT = '[%(asctime)s: %(levelname)s/%(processName)s-%(process)d] %(message)s'
 
 # add annotations for rate limit etc.
 
@@ -116,11 +117,12 @@ TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
 # Logging: Add to existing django logging configuration, except when
 # running tests, since nose will capture the log output itself
 if not TESTING:
+    FORMATTER_SIMPLE_FORMAT = '[%(asctime)s %(levelname)s/%(name)s-%(process)d] %(message)s'
     LOGGING = {
         'version': 1,
         'formatters': {
             'simple': {
-                'format': '%(levelname)s %(name)s %(message)s'
+                'format': FORMATTER_SIMPLE_FORMAT,
                 }
             },
         'handlers': {
@@ -143,3 +145,5 @@ if not TESTING:
 REST_FRAMEWORK = {
     'TEST_REQUEST_DEFAULT_FORMAT': 'json'
 }
+
+import freezr.celery

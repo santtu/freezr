@@ -12,7 +12,7 @@ tmux \
     bind-key r respawn-pane -k \; \
     bind-key k kill-window \; \
     new-session -s freezr "rabbitmq-server" \; \
-    $nw "$env cd $app_dir && python manage.py celeryd --autoreload -B -E -l debug" \; \
+    $nw "$env cd $app_dir && python manage.py celeryd --autoreload --settings freezr.settings -B -E -l debug" \; \
     $nw "$env cd $app_dir && python manage.py runserver" \; \
     select-layout even-vertical
 exit $?

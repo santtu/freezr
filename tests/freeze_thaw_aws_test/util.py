@@ -4,8 +4,13 @@ import logging
 import json
 import boto.ec2
 import freezr.util as util
+import logging
+import time
 
 FILTER_KEYS = ('pick_filter', 'save_filter', 'terminate_filter')
+
+requests.adapters.DEFAULT_RETRIES = 5
+log = logging.getLogger('freeze_thaw_aws_test.util')
 
 class Client(util.Logger):
     """Quick and dirty almost-like-real-django/rest-test-Client
@@ -120,17 +125,44 @@ class Mixin(util.Logger):
             def __enter__(self):
                 r = self.client.get(self.project)
                 assert r.status_code == 200
-                self.data = {key: r.data[key] for key in FILTER_KEYS}
+                self.data = r.data
                 return self
 
             def __exit__(self, *args):
-                r = self.client.patch(self.project, self.data)
+                filters = {key: self.data[key] for key in FILTER_KEYS}
+                r = self.client.patch(self.project, filters)
                 assert r.status_code == 200
 
             def __getitem__(self, key):
                 return self.data[key]
 
         return inner(self.client, project)
+
+    def resource_saver(self, data):
+        """Save resource's `data`, which is assumed to contain a valid
+        `url` for the resource. At __exit__ this will `put` the saved
+        data."""
+
+        class inner(object):
+            def __init__(self, client, data):
+                self.client = client
+                self.data = data
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                try:
+                    r = self.client.put(self.data['url'], self.data)
+                except:
+                    log.exception('oops')
+
+                assert r.status_code == 200
+
+            def __getitem__(self, key):
+                return self.data[key]
+
+        return inner(self.client, data)
 
     def match(self, data, pattern):
         keys = pattern.keys()
@@ -143,6 +175,20 @@ class Mixin(util.Logger):
 
         self.fail('Could not find datum matching %r from %r' % (
                 pattern, data))
+
+    def timeout(self, secs=300, fail=True):
+        class inner(object):
+            def __init__(self, until, fail):
+                self.until = until
+                self.fail = fail
+
+            def __bool__(self):
+                if fail and time.time() >= self.until:
+                    assert False
+
+                return time.time() >= self.until
+
+        return inner(time.time() + secs, fail)
 
     @property
     def ec2(self):

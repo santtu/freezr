@@ -1,13 +1,14 @@
 from __future__ import absolute_import
-from .celery import app
-from .models import Account, Project, Instance
+from freezr.celery import app
+from freezr.models import Account, Project, Instance
 from django.utils import timezone
 from datetime import timedelta
 from celery.decorators import periodic_task
 from celery.task.schedules import crontab
 import logging
-#from freezr.aws import AwsInterface
 import freezr.aws
+from celery import Celery
+
 
 log = logging.getLogger('freezr.tasks')
 # shutting-down is a transition, but from our point of view the
@@ -37,7 +38,7 @@ def refresh(older_than=3600, regions=None):
 
     log.info('Refresh All: limit %d seconds', older_than)
 
-    for account in Account.objects.all():
+    for account in Account.objects.filter(active=True).all():
         if account.updated is None or account.updated <= limit:
             tasks.add(refresh_account.delay(account.id))
         else:
@@ -54,6 +55,9 @@ def refresh_account(pk, regions=None, older_than=None):
 
     account = Account.objects.get(id=pk)
     log.info('Refresh Account: %r, regions=%r', account, regions)
+
+    if not account.active:
+        return
 
     if older_than is None or older_than < 0:
         older_than = 0
@@ -84,13 +88,26 @@ def refresh_account(pk, regions=None, older_than=None):
 def freeze_project(pk):
     project = Project.objects.get(id=pk)
     log.info('Freeze Project: %r', project)
+
+    if not project.account.active:
+        return
+
     project.freeze(aws=freezr.aws.AwsInterface(project.account))
 
 @app.task()
 def thaw_project(pk):
     project = Project.objects.get(id=pk)
     log.info('Thaw Project: %r', project)
+
+    if not project.account.active:
+        return
+
     project.thaw(aws=freezr.aws.AwsInterface(project.account))
+
+# Note: We don't have project.account.active check on instance checks,
+# since refresh_instance cannot be directly triggered from outside, it
+# is used in case we have already a need to do an instance refresh. So
+# let's do it regardless of account active state.
 
 @app.task()
 def refresh_instance(pk):

@@ -18,11 +18,12 @@ DATABASES = {
 
 #print("BROKER_URL = {0}".format(BROKER_URL))
 
+
 LOGGING = {
     'version': 1,
     'formatters': {
         'simple': {
-            'format': '%(levelname)s %(name)s %(message)s'
+            'format': FORMATTER_SIMPLE_FORMAT,
             }
         },
     'handlers': {
@@ -42,4 +43,4 @@ LOGGING = {
         }
     }
 
-import freezr.celery
+#import freezr.celery

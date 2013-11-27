@@ -1,6 +1,6 @@
 from freezr.models import *
 from freezr.serializers import *
-import freezr.tasks as tasks
+import freezr.celery.tasks as tasks
 from django.http import Http404
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -39,6 +39,10 @@ class AccountViewSet(BaseViewSet):
         # TODO: Access control
         account = Account.objects.get(pk=pk)
 
+        if not account.active:
+            return Response({'error': 'Account is inactive'},
+                            status=status.HTTP_403_FORBIDDEN)
+
         # use older_than to cause some throttling
         async = tasks.refresh_account.delay(pk, older_than=30)
         return Response({'message': 'Project refresh started',
@@ -68,6 +72,10 @@ class ProjectViewSet(BaseViewSet):
                        self, request, pk);
         project = Project.objects.get(pk=pk)
 
+        if not project.account.active:
+            return Response({'error': 'Account is inactive'},
+                            status=status.HTTP_403_FORBIDDEN)
+
         if project.state != 'running':
             return Response({'error': 'Project state is not valid for freezing'},
                             status=status.HTTP_409_CONFLICT)
@@ -84,7 +92,7 @@ class ProjectViewSet(BaseViewSet):
         #tasks.freeze_project.delay(project.id)
         self.log.debug("freeze: async=%r", async)
 
-        return Response({'message': 'Project freezing started',
+        return Response({'error': 'Project freezing started',
                          'operation': async.id},
                         status=status.HTTP_202_ACCEPTED)
 
@@ -94,6 +102,10 @@ class ProjectViewSet(BaseViewSet):
         self.log.debug("thaw: self=%r request=%r pk=%r",
                        self, request, pk)
         project = Project.objects.get(pk=pk)
+
+        if not project.account.active:
+            return Response({'error': 'Account is inactive'},
+                            status=status.HTTP_403_FORBIDDEN)
 
         if project.state != 'frozen':
             return Response({'error': 'Project state is not valid for thawing'},
