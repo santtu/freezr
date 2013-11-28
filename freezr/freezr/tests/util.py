@@ -34,12 +34,17 @@ class AwsMock(object):
         self.calls.append(('terminate_instance', instance))
 
 class AwsMockFactory(object):
-    def __init__(self):
+    def __init__(self, cls=AwsMock, obj=None):
         self.aws_list = []
         self.aws = None
+        self.cls = cls
+        self.obj = obj
 
     def __call__(self, *args, **kwargs):
-        self.aws = AwsMock(*args, **kwargs)
+        if self.obj:
+            return self.obj
+
+        self.aws = self.cls(*args, **kwargs)
         self.aws_list.append(self.aws)
         return self.aws
 
@@ -94,3 +99,9 @@ def with_aws(aws):
             freezr.aws.AwsInterface = self.old_aws
 
     return inner(aws)
+
+# from http://stackoverflow.com/a/14620633/779129
+class AttrDict(dict):
+    def __init__(self, *args, **kwargs):
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self

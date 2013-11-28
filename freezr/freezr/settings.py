@@ -115,7 +115,7 @@ CELERY_RESULT_BACKEND = 'amqp'
 CELERY_TASK_RESULT_EXPIRES = 600 # 10 minutes
 CELERYBEAT_SCHEDULER = "djcelery.schedulers.DatabaseScheduler"
 CELERY_IMPORTS = ('freezr.celery', 'freezr.celery.tasks')
-CELERYD_LOG_FORMAT = '[%(asctime)s: %(levelname)s/%(name)s-%(process)d] %(message)s'
+CELERYD_LOG_FORMAT = '[%(asctime)s %(levelname)s/%(name)s-%(process)d] %(message)s'
 CELERY_TASK_PUBLISH_RETRY = True
 CELERY_TRACK_STARTED = True
 

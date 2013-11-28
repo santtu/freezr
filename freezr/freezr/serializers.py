@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from freezr.models import *
 import logging
+from freezr.celery.tasks import refresh_account, dispatch
 
 log = logging.getLogger('freezr.serializers')
 
@@ -133,6 +134,22 @@ class ProjectSerializer(util.Logger, ImmutableMixin,
 
             if errors:
                 return
+
+        # Check if account's region set grows, trigger refresh if so
+        account = instance.account if instance else attrs['account']
+        request_regions = ((attrs.get('_regions').split(","))
+                           if attrs.get('_regions', '')
+                           else [])
+        instance_regions = (set(request_regions) |
+                            set(instance.regions if instance else []))
+        account_regions = set(account.regions)
+
+        if not (instance_regions <= account_regions):
+            self.log.info("New regions detected, triggering account refresh: %r",
+                          instance_regions - account_regions)
+
+            dispatch(refresh_account.si(account.id, older_than=0),
+                     countdown=10)
 
         return super(ProjectSerializer, self).restore_object(attrs,
                                                              instance=instance)

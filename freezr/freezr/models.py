@@ -294,6 +294,25 @@ class Instance(BaseModel):
     # Current instance state
     state = models.CharField(max_length=30, choices=INSTANCE_STATE_CHOICES)
 
+    def __init__(self, *args, **kwargs):
+        super(Instance, self).__init__(*args, **kwargs)
+        self._aws_instance = None
+
+    @property
+    def aws_instance(self):
+        """Last AWS instance record that was used to update this
+        object. Note that this value is not persistent and is alive
+        only from the moment when *this* object instance was used to
+        refresh instance data onwards. It should be used only when you
+        have just done a successfull instance refresh."""
+
+        return self._aws_instance
+
+    @aws_instance.setter
+    def aws_instance(self, value):
+        assert self._aws_instance is None
+        self._aws_instance = value
+
     def __unicode__(self):
         return self.instance_id
 

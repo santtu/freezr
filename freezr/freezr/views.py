@@ -34,8 +34,8 @@ class AccountViewSet(BaseViewSet):
     @action()
     @util.log_error(Account)
     def refresh(self, request, pk):
-        self.log.debug("refresh: self=%r request=%r pk=%r",
-                       self, request, pk)
+        # self.log.debug("refresh: self=%r request=%r pk=%r",
+        #                self, request, pk)
 
         # TODO: Access control
         account = Account.objects.get(pk=pk)
@@ -51,15 +51,13 @@ class AccountViewSet(BaseViewSet):
                         status=status.HTTP_202_ACCEPTED)
 
     def post_save(self, obj, **kwargs):
-        try:
-            ret = super(AccountViewSet, self).post_save(obj, **kwargs)
+        ret = super(AccountViewSet, self).post_save(obj, **kwargs)
+
+        if obj.regions:
             async = dispatch(refresh_account.si(obj.id, older_than=0),
                              countdown=5)
-            self.log.debug("post_save: triggering account %s refresh, "
-                           "async %s", obj, async)
-            return ret
-        except:
-            self.log.exception('wtf?')
+
+        return ret
 
 class ProjectViewSet(BaseViewSet):
     model = Project
@@ -74,14 +72,14 @@ class ProjectViewSet(BaseViewSet):
     @action()
     @util.log_error(Project)
     def freeze(self, request, pk):
-        self.log.debug("freeze: self=%r request=%r pk=%r",
-                       self, request, pk);
+        # self.log.debug("freeze: self=%r request=%r pk=%r",
+        #                self, request, pk);
         project = Project.objects.get(pk=pk)
 
-        self.log.debug("freeze: project.state=%r project.account=%d "
-                       "project.account.active=%r",
-                       project.state,
-                       project.account.id, project.account.active)
+        # self.log.debug("freeze: project.state=%r project.account=%d "
+        #                "project.account.active=%r",
+        #                project.state,
+        #                project.account.id, project.account.active)
 
         if not project.account.active:
             return Response({'error': 'Account is inactive'},
@@ -101,7 +99,7 @@ class ProjectViewSet(BaseViewSet):
              refresh_account.si(project.account.id, older_than=0))
             )
 
-        self.log.debug("freeze: async=%r", async)
+        # self.log.debug("freeze: async=%r", async)
 
         return Response({'message': 'Project freezing started',
                          'operation': async.id},
@@ -110,8 +108,8 @@ class ProjectViewSet(BaseViewSet):
     @action()
     @util.log_error(Project)
     def thaw(self, request, pk):
-        self.log.debug("thaw: self=%r request=%r pk=%r",
-                       self, request, pk)
+        # self.log.debug("thaw: self=%r request=%r pk=%r",
+        #                self, request, pk)
         project = Project.objects.get(pk=pk)
 
         if not project.account.active:
@@ -131,7 +129,7 @@ class ProjectViewSet(BaseViewSet):
              refresh_account.si(project.account.id, older_than=0))
             )
 
-        self.log.debug("thaw: async=%r", async)
+        # self.log.debug("thaw: async=%r", async)
 
         return Response({'message': 'Project thawing started',
                          'operation': async.id},

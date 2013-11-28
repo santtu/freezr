@@ -120,3 +120,8 @@ class NonDestructiveTests(Mixin, unittest.TestCase):
                 self.until_instances_in_state(running=6)
 
     # TODO 03: Freeze only some, skip some. Freeze and thaw.
+
+    # TODO 04: What happens if we remove region -- do we delete
+    # instances in those regions (unit test)
+
+    # TODO 05: Verify that unexpected state changes are logged (unit test)

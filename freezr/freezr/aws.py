@@ -59,6 +59,13 @@ class AwsInterface(util.Logger):
         record.vpc_id = instance.vpc_id
         record.store = instance.root_device_type
         record.type = instance.instance_type
+        record.aws_instance = instance # this is not persisted
+
+        # self.log.debug("instance data: %r", instance)
+        # self.log.debug("instance data dir: %r", dir(instance))
+        # for n in dir(instance):
+        #     if n[0] != '_':
+        #         self.log.debug("instance: %s = %r", n, getattr(instance, n))
 
     def refresh_region(self, account, region):
         """Refreshes given `account` information on `region`. Returns
