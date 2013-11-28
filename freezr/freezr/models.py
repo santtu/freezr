@@ -472,7 +472,7 @@ class Project(BaseModel):
         l.project = self
 
     def freeze(self, aws):
-        if self.state != 'running':
+        if self.state not in ('running', 'freezing'):
             return
 
         self.log_entry('Freezing project')
@@ -532,18 +532,16 @@ class Project(BaseModel):
         self.account.log_entry('Froze project %s' % (self,))
 
     def thaw(self, aws):
-        if self.state != 'frozen':
+        if self.state not in ('frozen', 'thawing'):
             return
 
         self.log_entry('Thawing project')
-
-        self.log.debug("thaw: self=%r", self)
 
         # Don't thaw instances that are actually running. User might
         # have added those manually to the environment after freeze.
         saved_instances = [i for i in self.saved_instances if i.state == 'stopped']
 
-        self.log.debug("thaw: self=%r saved_instances=%r",
+        self.log.debug("Thawing project %s, instances to be saved: %r",
                        self, saved_instances)
 
         started = timezone.now()

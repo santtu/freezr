@@ -85,10 +85,19 @@ class ProjectViewSet(BaseViewSet):
             return Response({'error': 'Account is inactive'},
                             status=status.HTTP_403_FORBIDDEN)
 
-        if project.state != 'running':
+        # Note: We allow freezing operation to be re-scheduled on a
+        # freezing project -- normally it moves quickly from freezing
+        # to frozen unless the task has been dropped, in which case it
+        # is better to allow re-freeze as otherwise the project would
+        # not be externally recoverable.
+        if project.state not in ('running', 'freezing'):
             return Response({'error':
                              'Project state is not valid for freezing'},
                             status=status.HTTP_409_CONFLICT)
+
+        # Update project state.
+        project.state = 'freezing'
+        project.save()
 
         # Do a forced refresh on the account just before freeze so we
         # have as up-to-date information as possible. (Freeze operates
@@ -116,10 +125,13 @@ class ProjectViewSet(BaseViewSet):
             return Response({'error': 'Account is inactive'},
                             status=status.HTTP_403_FORBIDDEN)
 
-        if project.state != 'frozen':
+        if project.state not in ('frozen', 'thawing'):
             return Response({'error':
                              'Project state is not valid for thawing'},
                             status=status.HTTP_409_CONFLICT)
+
+        project.state = 'thawing'
+        project.save()
 
         # Again, do a forced refresh before starting the thaw
         # operation.
@@ -128,8 +140,6 @@ class ProjectViewSet(BaseViewSet):
              thaw_project.si(project.id) |
              refresh_account.si(project.account.id, older_than=0))
             )
-
-        # self.log.debug("thaw: async=%r", async)
 
         return Response({'message': 'Project thawing started',
                          'operation': async.id},

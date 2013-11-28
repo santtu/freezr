@@ -150,7 +150,7 @@ def freeze_project(self, pk):
 
     log.info('Freeze Project: %r', project)
 
-    if not project.account.active:
+    if not project.account.active or project.state != 'freezing':
         return
 
     project.freeze(aws=freezr.aws.AwsInterface(project.account))
@@ -165,7 +165,7 @@ def thaw_project(self, pk):
 
     log.info('Thaw Project: %r', project)
 
-    if not project.account.active:
+    if not project.account.active or project.state != 'thawing':
         return
 
     project.thaw(aws=freezr.aws.AwsInterface(project.account))

@@ -331,3 +331,24 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
                           u'i-000003': 'thaw_instance',
                           u'i-000004': 'thaw_instance',
                           u'i-000005': 'thaw_instance'})
+
+    def testRefreeze(self):
+        # check that we can issue freeze on a project that has been
+        # already marked for freezing
+        aws = util.AwsMock()
+
+        self.project.state = 'freezing'
+        self.project.save()
+
+        self.project.freeze(aws)
+        self.assertEqual(self.project.state, 'frozen')
+
+    def testRethaw(self):
+        # same applies for thawing
+        aws = util.AwsMock()
+
+        self.project.state = 'thawing'
+        self.project.save()
+
+        self.project.thaw(aws)
+        self.assertEqual(self.project.state, 'running')
