@@ -28,6 +28,21 @@ class NonDestructiveTests(Mixin, unittest.TestCase):
 
             time.sleep(2)
 
+    def assertInstanceStates(self, **expected_counts):
+        counts = self.instance_states()
+        self.assertEqual(counts, expected_counts)
+
+    def assertFilterCounts(self, data, counts):
+        for field, expected in zip(('picked_instances', 'saved_instances',
+                                    'terminated_instances', 'skipped_instances'),
+                                   counts):
+            count = len(data[field])
+            self.log.debug("%s %d <=> %d", field, count, expected)
+            self.assertEqual(count, expected,
+                             'Filtered instance field "%s" value %r has length %d, '
+                             'expected %d instances' % (
+                    field, data[field], count, expected))
+
     def test01FreezeEmptyProjectAndRefreeze(self):
         """004-01 Freeze an empty project, attempt re-freeze"""
 
@@ -39,44 +54,34 @@ class NonDestructiveTests(Mixin, unittest.TestCase):
 
         # validate directly from aws
         # ignore terminated, they can be from previous tests
-        counts = self.instance_states()
-        self.assertEqual(counts, {'running': 6})
+        self.assertInstanceStates(running=6)
 
         with self.filter_saver(project) as data:
             self.assertEqual(data['state'], 'running')
             try:
                 r = self.client.patch(project, {'pick_filter':'false'})
                 self.assertCode(r, 200)
-                self.assertEqual(r.data['picked_instances'], [])
-                self.assertEqual(r.data['terminated_instances'], [])
-                self.assertEqual(r.data['saved_instances'], [])
-                self.assertEqual(r.data['skipped_instances'], [])
+                # self.assertEqual(r.data['picked_instances'], [])
+                # self.assertEqual(r.data['terminated_instances'], [])
+                # self.assertEqual(r.data['saved_instances'], [])
+                # self.assertEqual(r.data['skipped_instances'], [])
+                self.assertFilterCounts(r.data, (0, 0, 0, 0))
 
-                r = self.client.post(project + "freeze/")
-                self.assertCode(r, 202)
+                self.freeze_project(project)
 
                 self.until_project_in_state(project, ('frozen',))
 
                 # validate that all instances are still running and
                 # none has been terminated or stopped or in any other
                 # non-running state
-                counts = self.instance_states()
-                self.assertEqual(counts, {'running': 6})
+                self.assertInstanceStates(running=6)
 
                 # try to freeze again, expect a failure
                 r = self.client.post(project + "freeze/")
                 self.assertCode(r, 409)
                 self.assertEqual(self.project_state(project), 'frozen')
             finally:
-                # running here too in case assert picks up before
-                # project is frozen
-                self.until_project_in_state(project, ('frozen', 'running'))
-
-                if self.project_state(project) == 'frozen':
-                    r = self.client.post(project + "thaw/")
-                    self.assertCode(r, 202)
-
-                self.until_project_in_state(project, ('running',))
+                self.restore_project(project)
 
     def test02FreezeFullProject(self):
         """004-02 Freeze all instances in a project"""
@@ -85,43 +90,65 @@ class NonDestructiveTests(Mixin, unittest.TestCase):
 
         # validate directly from aws
         # ignore terminated, they can be from previous tests
-        counts = self.instance_states()
-        self.assertEqual(counts, {'running': 6})
+        self.assertInstanceStates(running=6)
 
         with self.filter_saver(project) as data:
             self.assertEqual(data['state'], 'running')
             try:
                 r = self.client.patch(project, {'save_filter': 'true'})
                 self.assertCode(r, 200)
-                self.assertEqual(len(r.data['picked_instances']), 2)
-                self.assertEqual(r.data['terminated_instances'], [])
-                self.assertEqual(len(r.data['saved_instances']), 2)
-                self.assertEqual(r.data['skipped_instances'], [])
+                # self.assertEqual(len(r.data['picked_instances']), 2)
+                # self.assertEqual(r.data['terminated_instances'], [])
+                # self.assertEqual(len(r.data['saved_instances']), 2)
+                # self.assertEqual(r.data['skipped_instances'], [])
+                self.assertFilterCounts(r.data, (2, 2, 0, 0))
 
-                r = self.client.post(project + "freeze/")
-                self.assertCode(r, 202)
-
+                self.freeze_project(project)
                 self.until_project_in_state(project, ('frozen',))
 
                 # validate that all instances are still running and
                 # none has been terminated or stopped or in any other
                 # non-running state
                 self.until_instances_in_state(running=4, stopped=2)
+                #self.assertInstanceStates(running=4, stopped=2) #tautology
             finally:
-                # running here too in case assert picks up before
-                # project is frozen
-                self.until_project_in_state(project, ('frozen', 'running'))
+                self.restore_project(project)
 
-                if self.project_state(project) == 'frozen':
-                    r = self.client.post(project + "thaw/")
-                    self.assertCode(r, 202)
+    def restore_project(self, project):
+        # running here too in case assert picks up before
+        # project is frozen
+        self.until_project_in_state(project, ('frozen', 'running'))
 
-                self.until_project_in_state(project, ('running',))
-                self.until_instances_in_state(running=6)
+        if self.project_state(project) == 'frozen':
+            self.thaw_project(project)
 
-    # TODO 03: Freeze only some, skip some. Freeze and thaw.
+        self.until_project_in_state(project, ('running',))
+        self.until_instances_in_state(running=6)
+
+    def freeze_project(self, project):
+        r = self.client.post(project + "freeze/")
+        self.assertCode(r, 202)
+
+    def thaw_project(self, project):
+        r = self.client.post(project + "thaw/")
+        self.assertCode(r, 202)
+
+    def test03FreezePartialProject(self):
+        """004-03 Freeze some instances in project"""
+        project = self.project_vpc
+        self.assertInstanceStates(running=6)
+        with self.filter_saver(project) as data:
+            self.assertEqual(data['state'], 'running')
+            try:
+                r = self.client.patch(project, {'terminate_filter': 'false'})
+                self.assertCode(r, 200)
+                self.assertFilterCounts(r.data, (4, 1, 0, 3))
+
+                self.freeze_project(project)
+                self.until_project_in_state(project, ('frozen',))
+                self.until_instances_in_state(running=5, stopped=1)
+            finally:
+                self.restore_project(project)
 
     # TODO 04: What happens if we remove region -- do we delete
     # instances in those regions (unit test)
-
-    # TODO 05: Verify that unexpected state changes are logged (unit test)
