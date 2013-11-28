@@ -22,6 +22,9 @@ def flatu(items):
 class TestREST(test.APITestCase):
     fixtures = ('rest_tests',)
 
+    def setUp(self):
+        self.account = Account.objects.get(pk=1)
+
     def assertSimilar(self, a, b, msg=None,
                     sets=('regions','projects','accounts')):
         """Compare two dicts understanding that some fields are
@@ -228,9 +231,6 @@ class TestREST(test.APITestCase):
     # settings.
 
     def testRefreshAccount(self):
-        for a in Account.objects.all():
-            log.debug("%s", a)
-
         factory = AwsMockFactory()
         with with_aws(factory):
             log.debug("regions=%r", Account.objects.get(pk=1).regions)
@@ -240,7 +240,7 @@ class TestREST(test.APITestCase):
             log.debug("response=%r factory=%r factory.aws_list=%r "
                       "factory.aws.calls=%r",
                       response, factory, factory.aws_list, factory.aws.calls)
-            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.status_code, 202)
             self.assertEqual(len(factory.aws_list), 1)
             self.assertEqual(len(factory.aws.calls), 8)
             self.assertNotEqual(Account.objects.get(pk=1).updated, old)
@@ -253,10 +253,21 @@ class TestREST(test.APITestCase):
             log.debug("response=%r factory=%r factory.aws_list=%r "
                       "factory.aws.calls=%r",
                       response, factory, factory.aws_list, factory.aws.calls)
-            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.status_code, 202)
             self.assertEqual(len(factory.aws_list), 1)
             self.assertEqual(len(factory.aws.calls), 8)
             self.assertNotEqual(Account.objects.get(pk=3).updated, old)
+
+    def testRefreshInactiveAccount(self):
+        self.account.active = False
+        self.account.save()
+
+        factory = AwsMockFactory()
+        with with_aws(factory):
+            old = Account.objects.get(pk=1).updated
+            response = self.client.post(reverse('account-refresh', args=[1]))
+            self.assertEqual(response.status_code, 403)
+            self.assertEqual(len(factory.aws_list), 0)
 
     ## Note: It is not possible to really test refresh with
     ## transitioning states, since the test suite will run all tasks
