@@ -138,6 +138,9 @@ class ProjectSerializer(util.Logger, ImmutableMixin,
             if errors:
                 return
 
+        # TODO: Most of the logic below should really be in Account
+        # class, not here.
+
         # Need to check if account regions has changed?
         request_regions = instance_regions = set(instance and
                                                  instance.regions or [])
@@ -170,9 +173,10 @@ class ProjectSerializer(util.Logger, ImmutableMixin,
             current_regions = set(current)
 
             # additions?
-            if request_regions - current_regions:
+            added_regions = list(request_regions - current_regions)
+            if added_regions:
                 self.log.debug("New regions on account %s detected: %r",
-                               account, request_regions - current_regions)
+                               account, added_regions)
                 refresh = True
 
             # removals?
@@ -182,14 +186,19 @@ class ProjectSerializer(util.Logger, ImmutableMixin,
             # self.log.debug("removed=%r", removed)
 
             # if any is 0, it has been removed
-            if 0 in dict(removed).values():
+            removed_regions = [p[0] for p in removed.items() if not p[1]]
+            if removed_regions:
                 self.log.debug("Removed regions on account %s detected: %r",
-                               account,
-                               [p[0] for p in removed.items() if not p[1]])
+                               account, removed_regions)
                 refresh = True
 
         if refresh:
             dispatch(refresh_account.si(account.id, forced=True))
+            account.log_entry('Regions changed',
+                              details='Added: %s\nRemoved: %s' % (
+                    ", ".join(added_regions) or "none",
+                    ", ".join(removed_regions) or "none"),
+                              type='info')
 
         return super(ProjectSerializer, self).restore_object(attrs,
                                                              instance=instance)

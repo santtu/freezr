@@ -203,10 +203,13 @@ class Account(BaseModel):
         if foreign_count > 0:
             self.log.info('Found instances not from current '
                           'regions, removing them: %r', foreign_instances)
+
+            instance_ids = [i.instance_id for i in foreign_instances]
             foreign_instances.delete()
 
             self.log_entry('Removed %d instances from regions not used' % (
                     foreign_count,),
+                           details='Instances: %s' % (", ".join(instance_ids),),
                            type='info')
 
         elapsed = timezone.now() - started
