@@ -1,7 +1,10 @@
 from rest_framework import serializers
 from freezr.models import *
+from freezr.util import separator_split
 import logging
 from freezr.celery.tasks import refresh_account, dispatch
+from itertools import chain
+from collections import Counter
 
 log = logging.getLogger('freezr.serializers')
 
@@ -20,7 +23,7 @@ class ImmutableMixin(object):
 
 class CommaStringListField(util.Logger, serializers.WritableField):
     def to_native(self, obj):
-        return list(set(obj.split(",")))
+        return list(set(separator_split(obj, ",")))
 
     def from_native(self, data):
         return ",".join(data)
@@ -135,24 +138,58 @@ class ProjectSerializer(util.Logger, ImmutableMixin,
             if errors:
                 return
 
-        # Check if account's region set grows, trigger refresh if so
-        account = instance.account if instance else attrs['account']
-        request_regions = ((attrs.get('_regions').split(","))
-                           if attrs.get('_regions', '')
-                           else [])
-        instance_regions = (set(request_regions) |
-                            set(instance.regions if instance else []))
-        account_regions = set(account.regions)
+        # Need to check if account regions has changed?
+        request_regions = instance_regions = set(instance and
+                                                 instance.regions or [])
 
-        if not (instance_regions <= account_regions):
-            self.log.info('Detected new regions from project %s to account %s, '
-                          'triggering account refresh: %r',
-                          instance if instance else attrs.get('name', 'unknown'),
-                          account,
-                          instance_regions - account_regions)
+        if '_regions' in attrs:
+            request_regions = set(separator_split(attrs['_regions'], ","))
 
-            dispatch(refresh_account.si(account.id, older_than=0),
-                     countdown=10)
+        refresh = False
+
+        # self.log.debug("_request=%r request_regions=%r "
+        #                "instance_regions=%r ^ %r",
+        #                attrs.get('_regions', None),
+        #                request_regions, instance_regions,
+        #                request_regions ^ instance_regions)
+
+        # Is there difference between before and after for regions on
+        # this instance? For additions that is easy, just check if new
+        # regions for instance are currently in all set or not. For
+        # removals of regions we actually have to count how many times
+        # they are actually used to see whether any of "old" regions
+        # drops to zero count.
+
+        if request_regions ^ instance_regions:
+            account = instance.account if instance else attrs['account']
+
+            current = Counter(chain.from_iterable([
+                        project.regions for project in account.projects.all()
+                        ]))
+
+            current_regions = set(current)
+
+            # additions?
+            if request_regions - current_regions:
+                self.log.debug("New regions on account %s detected: %r",
+                               account, request_regions - current_regions)
+                refresh = True
+
+            # removals?
+            removed = Counter(current)
+            removed.subtract(Counter(instance_regions - request_regions))
+
+            # self.log.debug("removed=%r", removed)
+
+            # if any is 0, it has been removed
+            if 0 in dict(removed).values():
+                self.log.debug("Removed regions on account %s detected: %r",
+                               account,
+                               [p[0] for p in removed.items() if not p[1]])
+                refresh = True
+
+        if refresh:
+            dispatch(refresh_account.si(account.id, forced=True))
 
         return super(ProjectSerializer, self).restore_object(attrs,
                                                              instance=instance)

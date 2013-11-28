@@ -133,3 +133,16 @@ def log_error(obj_class, pk_field='pk'):
 
         return wrapper
     return wrapping
+
+def separator_split(string, sep):
+    """Almost like str.split, but will gobble leading and trailing
+    whitespace and an empty string results in an empty list, not list
+    with empty string like str.split. If `string` is None, will return
+    an empty list."""
+
+    string = string.strip()
+
+    if not string:
+        return []
+
+    return string.split(sep)

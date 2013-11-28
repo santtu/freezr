@@ -144,13 +144,9 @@ class IdempotentTests(Mixin, unittest.TestCase):
         r = self.client.get(self.account)
         updated = r.data['updated']
 
-        timeout = self.timeout(300)
-        until = time.time() + 300
+        timeout = self.timeout()
 
         while not timeout:
-            if time.time() > until:
-                self.fail('Timed out waiting for account to update')
-
             r = self.client.post(self.account + "refresh/")
             self.assertCode(r, 202)
 
@@ -222,3 +218,57 @@ class IdempotentTests(Mixin, unittest.TestCase):
         self.assertTrue('error' in r.data)
 
     # Note: Similar argument for freeze on frozen project here. See 004.
+
+    def test10RemoveRegion(self):
+        """003-10 Remove region from account's projects"""
+        # Those instances should disappear really quickly.
+        old_regions = []
+
+        r = self.client.get(self.account)
+        self.assertCode(r, 200)
+        orig_instances = r.data['instances']
+        self.assertEqual(len(orig_instances), 6)
+
+        r = self.client.get("/project/")
+        self.assertCode(r, 200)
+
+        try:
+            for p in r.data:
+                old_regions.append((p['url'], p['regions']))
+                r = self.client.patch(p['url'], {'regions': []})
+                self.assertCode(r, 200)
+
+            r = self.client.get(self.account)
+            self.assertCode(r, 200)
+            self.assertEqual(r.data['regions'], [])
+
+            # 5 minute timeout is ok, the account has just been refreshed
+            # so it won't be otherwise updated during this time
+            timeout = self.timeout()
+
+            while not timeout:
+                r = self.client.get(self.account)
+                self.assertCode(r, 200)
+
+                self.log.debug("account instances: %r", r.data['instances'])
+                if len(r.data['instances']) == 0:
+                    break
+
+                time.sleep(2)
+        finally:
+            for url, regions in old_regions:
+                r = self.client.patch(url, {'regions': regions})
+                self.assertCode(r, 200)
+                self.assertEqual(r.data['regions'], regions)
+
+            while not timeout:
+                r = self.client.get(self.account)
+                self.assertCode(r, 200)
+
+                self.log.debug("account instances: %r", r.data['instances'])
+                if len(r.data['instances']) == 6:
+                    break
+
+                time.sleep(2)
+
+            self.assertEqual(set(r.data['instances']), set(orig_instances))

@@ -150,6 +150,8 @@ class Mixin(util.Logger):
                     filters = {key: self.data[key] for key in FILTER_KEYS}
                     r = self.client.patch(self.project, filters)
                     self.parent.assertCode(r, 200)
+                    self.parent.assertEqual({key: r.data[key] for key in FILTER_KEYS},
+                                            filters)
                 except:
                     log.exception('oops')
                     if not type:

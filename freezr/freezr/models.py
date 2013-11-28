@@ -403,7 +403,7 @@ class Project(BaseModel):
     # Region where this project applies to, this is encoded as a char
     # field, below we have a property to allow setting and retrieving
     # this as a list.
-    _regions = models.CharField(max_length=255, default=",".join(EC2_REGIONS))
+    _regions = models.CharField(max_length=255, default=",".join(EC2_REGIONS), blank=True)
     # Long description
     description = models.TextField(blank=True)
 
@@ -442,7 +442,7 @@ class Project(BaseModel):
 
         picked = set()
 
-        for instance in self.account.instances.all():
+        for instance in self.account.instances.filter(region__in=self.regions):
             #self.log.debug("filter: looking at %s with %r", instance, f.format())
             if f.evaluate(instance.environment):
                 picked.add(instance)
