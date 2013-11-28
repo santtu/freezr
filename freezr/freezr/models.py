@@ -194,6 +194,21 @@ class Account(BaseModel):
             # TODO: catch other known exceptions. As well in there,
             # convert those into known exceptions.
 
+        # One more thing to do -- in case projects have removed
+        # regions, we need to remove our records of those instances
+        # (otherwise they would be left hanging around).
+        foreign_instances = self.instances.exclude(region__in=self.regions)
+        foreign_count = foreign_instances.count()
+
+        if foreign_count > 0:
+            self.log.info('Found instances not from current '
+                          'regions, removing them: %r', foreign_instances)
+            foreign_instances.delete()
+
+            self.log_entry('Removed %d instances from regions not used' % (
+                    foreign_count,),
+                           type='info')
+
         elapsed = timezone.now() - started
 
         # type switch to keep info level events relevant, "nothing
@@ -466,7 +481,7 @@ class Project(BaseModel):
 
     @regions.setter
     def regions(self, value):
-        self._regions = list(set(value)).join(",")
+        self._regions = ",".join(list(set(value)))
 
     def _log_entry(self, l):
         l.project = self

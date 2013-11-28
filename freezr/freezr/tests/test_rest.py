@@ -13,6 +13,7 @@ from datetime import datetime
 import copy
 from .util import AwsMockFactory, with_aws
 from django.utils import timezone
+from datetime import timedelta
 
 log = logging.getLogger(__file__)
 
@@ -288,6 +289,9 @@ class TestREST(test.APITestCase):
             p.state = 'running'
             p.save()
 
+        self.account.updated = timezone.now() - timedelta(days=1)
+        self.account.save()
+
         with with_aws(factory):
             response = self.client.post(reverse('project-freeze', args=[1]))
             self.assertEqual(response.status_code, 202)
@@ -305,6 +309,8 @@ class TestREST(test.APITestCase):
             names = [c[0] for c in calls]
             names = reduce(lambda a, b: a if a[-1] == b else a + [b],
                            names[1:], [names[0]])
+
+            log.debug("calls=%r", calls)
 
             # This is the expected call sequence. Actually we'd want
             # to do it as a regular expression refresh_region
@@ -341,7 +347,7 @@ class TestREST(test.APITestCase):
 
         # we should get refresh_region calls regardless of regular
         # rules about older_than updates
-        self.account.updated = timezone.now()
+        self.account.updated = timezone.now() - timedelta(days=1)
         self.account.save()
 
         with with_aws(factory):
@@ -353,14 +359,18 @@ class TestREST(test.APITestCase):
             self.assertEqual(response.data['message'],
                              'Project thawing started')
 
+            self.assertEqual(Project.objects.get(pk=1).state, "running")
+
             # Combine calls from all AWS mocks
             calls = chain.from_iterable([a.calls for a in factory.aws_list])
             calls = list(calls)
+
+            log.debug("calls=%r", calls)
 
             # Collapse names of called methods into single list
             names = [c[0] for c in calls]
             names = reduce(lambda a, b: a if a[-1] == b else a + [b],
                            names[1:], [names[0]])
 
-            self.assertEqual(names, ['refresh_region',
-                                     'thaw_instance', 'refresh_region'])
+            self.assertEqual(names, ['refresh_region', 'thaw_instance',
+                                     'refresh_region'])

@@ -115,3 +115,30 @@ class TestAccount(FreezrTestCaseMixin, test.TestCase):
         i.delete()
         self.account.refresh(aws=self.aws)
         assertState('running')
+
+
+    def testRegionsDisappearing(self):
+        # test case when region is removed from project on account,
+        # removing that region from the complete list -- instances on
+        # non-reachable regions should be removed
+        p = self.account.new_project(name="test", _regions="a,b")
+        p.save()
+
+        for id, region in (('i-0001', 'a'), ('i-0002', 'b')):
+            i = self.account.new_instance(instance_id=id, region=region,
+                                          type='m1.small', state='running')
+            i.save()
+
+        self.assertEqual(self.account.instances.count(), 2)
+        self.assertEqual(self.account.regions, ['a', 'b'])
+
+        self.account.refresh(aws=self.aws)
+        self.assertEqual(self.account.instances.count(), 2)
+
+        p.regions = ['a']
+        p.save()
+
+        self.assertEqual(self.account.regions, ['a'])
+
+        self.account.refresh(aws=self.aws)
+        self.assertEqual(self.account.instances.count(), 1)

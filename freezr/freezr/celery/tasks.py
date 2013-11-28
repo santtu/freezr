@@ -118,10 +118,10 @@ def refresh_account(self, pk, regions=None,
             delta < -timedelta(hours=1, seconds=older_than)
             )
 
-        log.debug("%s <=> %s --> delta=%s < %s = %s",
+        log.debug("%s <=> %s --> delta=%s < %s = %s (forced %s)",
                   timezone.now(), account.updated, delta,
                   timedelta(seconds=older_than),
-                  fresh)
+                  fresh, forced)
 
     if fresh and not forced:
         log.debug('Account %r update newer than %d seconds, not refreshing',

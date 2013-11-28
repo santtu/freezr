@@ -59,6 +59,7 @@
   fields:
     account: 1
     instance_id: i-000001
+    region: us-east-1
     type: m1.small
     store: ebs
     state: running
@@ -73,6 +74,7 @@
   fields:
     account: 1
     instance_id: i-000002
+    region: us-east-1
     type: m1.small
     store: ebs
     state: running
@@ -85,6 +87,7 @@
   fields:
     account: 3
     instance_id: i-000003
+    region: us-east-1
     type: m1.small
     store: ebs
     state: running
@@ -97,6 +100,7 @@
   fields:
     account: 3
     instance_id: i-000004
+    region: us-east-1
     type: m1.small
     store: ebs
     state: running
@@ -109,6 +113,7 @@
   fields:
     account: 3
     instance_id: i-000005
+    region: us-east-1
     type: m1.small
     store: ebs
     state: running
