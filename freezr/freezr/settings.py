@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/1.6/ref/settings/
 import os
 import datetime
 import sys
+from datetime import timedelta
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
@@ -118,6 +119,17 @@ CELERY_IMPORTS = ('freezr.celery', 'freezr.celery.tasks')
 CELERYD_LOG_FORMAT = '[%(asctime)s %(levelname)s/%(name)s-%(process)d] %(message)s'
 CELERY_TASK_PUBLISH_RETRY = True
 CELERY_TRACK_STARTED = True
+
+CELERYBEAT_SCHEDULE = {
+    'refresh-accounts': {
+        'task': 'freezr.celery.tasks.refresh',
+        'schedule': timedelta(minutes=10),
+        },
+    'reissue-operations': {
+        'task': 'freezr.celery.tasks.reissue_operations',
+        'schedule': timedelta(minutes=10),
+        }
+}
 
 # add annotations for rate limit etc.
 

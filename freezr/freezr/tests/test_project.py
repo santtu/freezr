@@ -21,6 +21,7 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
                                secret_key="abcd")
         self.account.save()
         self.project = self.account.new_project(name="test", state='running')
+        self.project.save()
         self.id = 10000
         self.instances = []
 
@@ -220,10 +221,6 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
         self.createSet2()
         aws = util.AwsMock()
 
-        def assertState(state):
-            self.assertEqual(Project.objects.get(pk=self.project.id).state,
-                             state)
-
         def reset():
             self.project.state = 'running'
             self.project.save()
@@ -231,40 +228,41 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
 
         # ------
 
+        self.assertState('running')
         # With nothing to save or terminate, no calls.
         with self.instance_filters('region = none'):
             self.project.freeze(aws=aws)
 
-        assertState('frozen')
+        self.assertState('frozen')
         self.assertEqual(aws.calls, [])
 
         # With only saved instances, there are two staging instances.
         reset()
-        assertState('running')
+        self.assertState('running')
         with self.instance_filters('tag[staging]', 'true'):
             self.project.freeze(aws=aws)
 
-        assertState('frozen')
+        self.assertState('frozen')
         self.assertEqual(len(aws.calls), 2)
         self.assertEqualSet(ids(arg(aws.calls, 1)), ('i-000001', 'i-000002'))
 
         # Verify we can save all.
         reset()
-        assertState('running')
+        self.assertState('running')
         with self.instance_filters('true', 'true'):
             self.project.freeze(aws=aws)
 
-        assertState('frozen')
+        self.assertState('frozen')
         self.assertEqual(len(aws.calls), 10)
         self.assertEqualSet(ids(arg(aws.calls, 1)), [i.instance_id for i in Instance.objects.all()])
 
         # Save staging, terminate devtest, ignore production.
         reset()
-        assertState('running')
+        self.assertState('running')
         with self.instance_filters('true', 'tag[staging]', 'tag[devtest]'):
             self.project.freeze(aws=aws)
 
-        assertState('frozen')
+        self.assertState('frozen')
         self.assertEqual(len(aws.calls), 5)
 
         self.assertEqual({t[1].instance_id: t[0] for t in aws.calls},
@@ -274,13 +272,13 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
                           u'i-000004': 'terminate_instance',
                           u'i-000005': 'terminate_instance'})
 
+    def assertState(self, state):
+        self.assertEqual(Project.objects.get(pk=self.project.id).state,
+                         state)
+
     def testThaw(self):
         self.createSet2(override={'state': 'stopped'})
         aws = util.AwsMock()
-
-        def assertState(state):
-            self.assertEqual(Project.objects.get(pk=self.project.id).state,
-                             state)
 
         def reset():
             self.project.state = 'frozen'
@@ -290,21 +288,21 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
         # ------
 
         reset()
-        assertState('frozen')
+        self.assertState('frozen')
 
         # With nothing to thaw, no calls
         with self.instance_filters('region = none'):
             self.project.thaw(aws=aws)
 
-        assertState('running')
+        self.assertState('running')
         self.assertEqual(aws.calls, [])
 
         reset()
-        assertState('frozen')
+        self.assertState('frozen')
         with self.instance_filters('tag[staging]', 'true'):
             self.project.thaw(aws=aws)
 
-        assertState('running')
+        self.assertState('running')
         self.assertEqual(len(aws.calls), 2)
         self.assertEqualSet(ids(arg(aws.calls, 1)), ('i-000001', 'i-000002'))
 
@@ -313,7 +311,7 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
         with self.instance_filters('true', 'true'):
             self.project.thaw(aws=aws)
 
-        assertState('running')
+        self.assertState('running')
         self.assertEqual(len(aws.calls), 10)
         self.assertEqualSet(ids(arg(aws.calls, 1)), [i.instance_id for i in Instance.objects.all()])
 
@@ -322,7 +320,7 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
         with self.instance_filters('true', 'tag[staging] or tag[devtest]'):
             self.project.thaw(aws=aws)
 
-        assertState('running')
+        self.assertState('running')
         self.assertEqual(len(aws.calls), 5)
 
         self.assertEqual({t[1].instance_id: t[0] for t in aws.calls},
@@ -331,6 +329,14 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
                           u'i-000003': 'thaw_instance',
                           u'i-000004': 'thaw_instance',
                           u'i-000005': 'thaw_instance'})
+
+    def testFreezeThaw(self):
+        aws = util.AwsMock()
+        self.assertState('running')
+        self.project.freeze(aws)
+        self.assertState('frozen')
+        self.project.thaw(aws)
+        self.assertState('running')
 
     def testRefreeze(self):
         # check that we can issue freeze on a project that has been

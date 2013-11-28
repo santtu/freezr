@@ -12,6 +12,7 @@ from itertools import chain
 from datetime import datetime
 import copy
 from .util import AwsMockFactory, with_aws
+from django.utils import timezone
 
 log = logging.getLogger(__file__)
 
@@ -237,9 +238,6 @@ class TestREST(test.APITestCase):
 
             old = Account.objects.get(pk=1).updated
             response = self.client.post(reverse('account-refresh', args=[1]))
-            log.debug("response=%r factory=%r factory.aws_list=%r "
-                      "factory.aws.calls=%r",
-                      response, factory, factory.aws_list, factory.aws.calls)
             self.assertEqual(response.status_code, 202)
             self.assertEqual(len(factory.aws_list), 1)
             self.assertEqual(len(factory.aws.calls), 8)
@@ -250,9 +248,6 @@ class TestREST(test.APITestCase):
 
             old = Account.objects.get(pk=3).updated
             response = self.client.post(reverse('account-refresh', args=[3]))
-            log.debug("response=%r factory=%r factory.aws_list=%r "
-                      "factory.aws.calls=%r",
-                      response, factory, factory.aws_list, factory.aws.calls)
             self.assertEqual(response.status_code, 202)
             self.assertEqual(len(factory.aws_list), 1)
             self.assertEqual(len(factory.aws.calls), 8)
@@ -283,13 +278,11 @@ class TestREST(test.APITestCase):
         # This should fail with 409 since the project is in init state
         with with_aws(factory):
             response = self.client.post(reverse('project-freeze', args=[1]))
-            log.debug("response=%r factory=%r factory.aws_list=%r "
-                      "factory.aws.calls=%r",
-                      response, factory, factory.aws_list, factory.aws and factory.aws.calls)
             self.assertEqual(response.status_code, 409)
             self.assertEqual(factory.aws_list, [])
             self.assertTrue('error' in response.data)
-            self.assertEqual(response.data['error'], 'Project state is not valid for freezing')
+            self.assertEqual(response.data['error'],
+                             'Project state is not valid for freezing')
 
         for p in Project.objects.all():
             p.state = 'running'
@@ -297,14 +290,12 @@ class TestREST(test.APITestCase):
 
         with with_aws(factory):
             response = self.client.post(reverse('project-freeze', args=[1]))
-            log.debug("response=%r factory=%r factory.aws_list=%r "
-                      "factory.aws.calls=%r",
-                      response, factory, factory.aws_list, factory.aws and factory.aws.calls)
             self.assertEqual(response.status_code, 202)
             self.assertEqual(len(factory.aws_list), 3)
             self.assertTrue('message' in response.data)
             self.assertTrue('operation' in response.data)
-            self.assertEqual(response.data['message'], 'Project freezing started')
+            self.assertEqual(response.data['message'],
+                             'Project freezing started')
 
             # Combine calls from all AWS mocks
             calls = chain.from_iterable([a.calls for a in factory.aws_list])
@@ -312,7 +303,8 @@ class TestREST(test.APITestCase):
 
             # Collapse names of called methods into single list
             names = [c[0] for c in calls]
-            names = reduce(lambda a, b: a if a[-1] == b else a + [b], names[1:], [names[0]])
+            names = reduce(lambda a, b: a if a[-1] == b else a + [b],
+                           names[1:], [names[0]])
 
             # This is the expected call sequence. Actually we'd want
             # to do it as a regular expression refresh_region
@@ -323,7 +315,8 @@ class TestREST(test.APITestCase):
                            'freeze_instance', 'refresh_region'] or
                  names == ['refresh_region', 'freeze_instance',
                            'terminate_instance', 'refresh_region']),
-                "%r is not expected refresh+freeze/terminate+refresh sequence" % (names,))
+                "%r is not expected "
+                "refresh+freeze/terminate+refresh sequence" % (names,))
 
     def testThawAccount(self):
         factory = AwsMockFactory()
@@ -331,13 +324,11 @@ class TestREST(test.APITestCase):
         # This should fail with 409 since the project is in init state
         with with_aws(factory):
             response = self.client.post(reverse('project-thaw', args=[1]))
-            log.debug("response=%r factory=%r factory.aws_list=%r "
-                      "factory.aws.calls=%r",
-                      response, factory, factory.aws_list, factory.aws and factory.aws.calls)
             self.assertEqual(response.status_code, 409)
             self.assertEqual(factory.aws_list, [])
             self.assertTrue('error' in response.data)
-            self.assertEqual(response.data['error'], 'Project state is not valid for thawing')
+            self.assertEqual(response.data['error'],
+                             'Project state is not valid for thawing')
 
         for p in Project.objects.all():
             p.state = 'frozen'
@@ -348,16 +339,19 @@ class TestREST(test.APITestCase):
             i.state = 'stopped'
             i.save()
 
+        # we should get refresh_region calls regardless of regular
+        # rules about older_than updates
+        self.account.updated = timezone.now()
+        self.account.save()
+
         with with_aws(factory):
             response = self.client.post(reverse('project-thaw', args=[1]))
-            log.debug("response=%r factory=%r factory.aws_list=%r "
-                      "factory.aws.calls=%r",
-                      response, factory, factory.aws_list, factory.aws and factory.aws.calls)
             self.assertEqual(response.status_code, 202)
             self.assertEqual(len(factory.aws_list), 3)
             self.assertTrue('message' in response.data)
             self.assertTrue('operation' in response.data)
-            self.assertEqual(response.data['message'], 'Project thawing started')
+            self.assertEqual(response.data['message'],
+                             'Project thawing started')
 
             # Combine calls from all AWS mocks
             calls = chain.from_iterable([a.calls for a in factory.aws_list])
@@ -365,7 +359,8 @@ class TestREST(test.APITestCase):
 
             # Collapse names of called methods into single list
             names = [c[0] for c in calls]
-            names = reduce(lambda a, b: a if a[-1] == b else a + [b], names[1:], [names[0]])
+            names = reduce(lambda a, b: a if a[-1] == b else a + [b],
+                           names[1:], [names[0]])
 
             self.assertEqual(names, ['refresh_region',
                                      'thaw_instance', 'refresh_region'])

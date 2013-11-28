@@ -145,7 +145,10 @@ class ProjectSerializer(util.Logger, ImmutableMixin,
         account_regions = set(account.regions)
 
         if not (instance_regions <= account_regions):
-            self.log.info("New regions detected, triggering account refresh: %r",
+            self.log.info('Detected new regions from project %s to account %s, '
+                          'triggering account refresh: %r',
+                          instance if instance else attrs.get('name', 'unknown'),
+                          account,
                           instance_regions - account_regions)
 
             dispatch(refresh_account.si(account.id, older_than=0),

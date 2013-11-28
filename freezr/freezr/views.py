@@ -55,7 +55,7 @@ class AccountViewSet(BaseViewSet):
 
         if obj.regions:
             async = dispatch(refresh_account.si(obj.id, older_than=0),
-                             countdown=5)
+                             countdown=10)
 
         return ret
 
@@ -103,9 +103,9 @@ class ProjectViewSet(BaseViewSet):
         # have as up-to-date information as possible. (Freeze operates
         # based on our knowledge of the account.)
         async = dispatch(
-            (refresh_account.si(project.account.id, older_than=0) |
+            (refresh_account.si(project.account.id, forced=True) |
              freeze_project.si(project.id) |
-             refresh_account.si(project.account.id, older_than=0))
+             refresh_account.si(project.account.id, forced=True))
             )
 
         # self.log.debug("freeze: async=%r", async)
@@ -136,9 +136,9 @@ class ProjectViewSet(BaseViewSet):
         # Again, do a forced refresh before starting the thaw
         # operation.
         async = dispatch(
-            (refresh_account.si(project.account.id, older_than=0) |
+            (refresh_account.si(project.account.id, forced=True) |
              thaw_project.si(project.id) |
-             refresh_account.si(project.account.id, older_than=0))
+             refresh_account.si(project.account.id, forced=True))
             )
 
         return Response({'message': 'Project thawing started',

@@ -4,7 +4,6 @@ from freezr.models import Account, Project, Instance
 from django.utils import timezone
 from datetime import timedelta
 from celery.decorators import periodic_task
-from celery.task.schedules import crontab
 import logging
 import freezr.aws
 from celery import Celery, group, chain
@@ -20,6 +19,8 @@ log = logging.getLogger('freezr.tasks')
 STABLE_INSTANCE_STATES = ('running', 'stopped',
                             'terminated', 'shutting-down')
 REFRESH_INSTANCE_INTERVAL = 5
+
+ACCOUNT_UPDATE_INTERVAL = 3600 # 1 hour
 
 # Just a debug task, get rid of it later.
 @app.task(bind=True)
@@ -38,26 +39,10 @@ def retry(func, *args, **kwargs):
     try:
         return func(*args, **kwargs)
     except OperationalError as ex:
-        log.debug('[%s] Retry on database error', args[0].request.id, exc_info=True)
+        log.debug('[%s] Retry on database error', args[0].request.id)
+        #, exc_info=True)
         args[0].retry(exc=ex, countdown=15) # more aggressive retry schedule
 
-# def retry(func):
-#     """Decorator to automatically retry the task when certain
-#     exceptions (database rollbacks, locks etc.) are encountered, as we
-#     have a very strong expectation that these will work if retried.
-
-#     Note to self: Be careful, you don't want to retry things caused by
-#     program errors, they won't go away on repeats."""
-#     @wraps(func)
-#     def wrapper(*args, **kwargs):
-#         log.debug("wrapper call for %s: args=%r kwargs=%r", func, args, kwargs)
-#         try:
-#             return func(*args, **kwargs)
-#         except OperationalError as ex:
-#             log.debug('Retry on database error', exc_info=True)
-#             raise Retry(str(ex))
-
-#     return wrapper
 
 def dispatch(task, **kwargs):
     """Dispatches the given task with default error and result
@@ -74,9 +59,8 @@ def dispatch(task, **kwargs):
 # then it'll be retried within 10 minutes.
 
 @app.task(bind=True)
-@periodic_task(run_every=crontab(minute='*/10'))
 @retry
-def refresh(self, older_than=3600, regions=None):
+def refresh(self, older_than=ACCOUNT_UPDATE_INTERVAL, regions=None):
     """Refreshes all accounts that have not been updated in
     `older_than` seconds."""
 
@@ -87,7 +71,7 @@ def refresh(self, older_than=3600, regions=None):
 
     for account in Account.objects.filter(active=True).all():
         if account.updated is None or account.updated <= limit:
-            tasks.add(refresh_account.si(account.id))
+            tasks.add(refresh_account.si(account.id, older_than=older_than))
         else:
             log.debug('Account %r update newer than %d seconds, '
                       'not refreshing',
@@ -98,7 +82,9 @@ def refresh(self, older_than=3600, regions=None):
 
 @app.task(bind=True)
 @retry
-def refresh_account(self, pk, regions=None, older_than=None):
+def refresh_account(self, pk, regions=None,
+                    older_than=ACCOUNT_UPDATE_INTERVAL,
+                    forced=False):
     """Refresh the given `pk` account, in given `regions`. If regions
     is None then all regions for the account will be checked. The
     `older_than` argument works like for refresh(), except by default
@@ -110,17 +96,34 @@ def refresh_account(self, pk, regions=None, older_than=None):
         log.error('Refresh Account: Unexistent account %d', pk)
         return
 
-    log.info('Refresh Account: %r, regions=%r', account, regions)
+    log.info('Refresh Account: %r (%s), updated=%r regions=%r, older_than=%r',
+             account, "active" if account.active else "not active",
+             account.updated, regions, older_than)
 
     if not account.active:
         return
 
-    if older_than is None or older_than < 0:
-        older_than = 0
+    # Coerce minimum 5 second older_than
+    older_than = max(5, older_than or 0)
 
-    limit = timezone.now() - timedelta(seconds=older_than)
-    if (older_than is not None and account.updated is not None and
-        account.updated > limit):
+    if account.updated is None:
+        fresh = False
+    else:
+        delta = timezone.now() - account.updated
+        fresh = not (
+            # Not updated in the past, within older_than
+            delta >= timedelta(seconds=older_than) or
+            # Someone has a botched clock, timestamp is to the future,
+            # force update
+            delta < -timedelta(hours=1, seconds=older_than)
+            )
+
+        log.debug("%s <=> %s --> delta=%s < %s = %s",
+                  timezone.now(), account.updated, delta,
+                  timedelta(seconds=older_than),
+                  fresh)
+
+    if fresh and not forced:
         log.debug('Account %r update newer than %d seconds, not refreshing',
                   account, older_than)
         return
@@ -203,7 +206,8 @@ def refresh_instance(self, pk):
         log.info("Refresh instance: after refresh, instance state is %s",
                  instance.state)
 
-        log.debug("aws_instance=%r %r", getattr(instance, 'aws_instance'), instance.aws_instance)
+        log.debug("aws_instance=%r %r", getattr(instance, 'aws_instance'),
+                  instance.aws_instance)
 
         # Yep, this is possible. Make an account log entry out of it.
         if (prev_state, instance.state) in (('pending', 'stopped'),
@@ -252,15 +256,20 @@ def log_error(task_id):
     log.error('Task failure: task %s, result %s, traceback:\n%s',
               task_id, result.result, result.traceback)
 
-# from inspect import getargspec
-# log.info("++++++++ retry = {0!r}".format(retry))
-# log.info("++++++++ refresh_instance = {0!r}".format(refresh_instance))
-# log.info("======== getargspec(retry) = {0!r}".format(getargspec(retry)))
-# log.info("======== getargspec(refresh_instance) = {0!r}".format(getargspec(refresh_instance)))
 
 @app.task(bind=True)
 def log_result(self, result, task=None):
-    log.info('[%s] Result for "%s": %r', self.request.id, task or "unknown", result)
+    log.info('[%s] Result for "%s": %r', self.request.id, task or "unknown",
+             result)
     # for n in dir(self):
     #     if n[0] != '_':
     #         log.debug("Task: %s = %r", n, getattr(self, n))
+
+@app.task(bind=True)
+@retry
+def reissue_operations(self):
+    for project in Project.objects.filter(state='freezing'):
+        dispatch(freeze_project.si(project.id))
+
+    for project in Project.objects.filter(state='thawing'):
+        dispatch(thaw_project.si(project.id))

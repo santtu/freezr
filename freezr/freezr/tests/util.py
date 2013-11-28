@@ -14,6 +14,12 @@ class AwsMock(object):
     def reset(self):
         self.calls = []
 
+    def assertCalled(self):
+        assert len(self.calls) > 0, "no calls to AWS mock"
+
+    def assertNotCalled(self):
+        assert len(self.calls) == 0, "%d unexpected calls to AWS mock" % (len(self.calls),)
+
     def refresh_region(self, account, region):
         log.debug('AwsMock.refresh_region: account=%r region=%r',
                   account, region)
@@ -35,18 +41,32 @@ class AwsMock(object):
 
 class AwsMockFactory(object):
     def __init__(self, cls=AwsMock, obj=None):
-        self.aws_list = []
-        self.aws = None
         self.cls = cls
         self.obj = obj
+        self.reset()
+
+    def reset(self):
+        self.aws_list = []
+        self._aws = None
 
     def __call__(self, *args, **kwargs):
         if self.obj:
             return self.obj
 
-        self.aws = self.cls(*args, **kwargs)
-        self.aws_list.append(self.aws)
+        self._aws = self.cls(*args, **kwargs)
+        self.aws_list.append(self._aws)
         return self.aws
+
+    @property
+    def aws(self):
+        assert self._aws is not None, "factory aws not constructed"
+        return self._aws
+
+    def assertNotUsed(self):
+        assert self._aws is None, "aws factory has been used"
+
+    def assertUsed(self):
+        assert self._aws is not None, "aws factory has not been used"
 
 class FreezrTestCaseMixin(object):
     _instance_id = 0
