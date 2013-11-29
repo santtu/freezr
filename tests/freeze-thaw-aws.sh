@@ -3,16 +3,20 @@ cur_dir=$(dirname $0)
 test_dir=$cur_dir/freeze_thaw_aws_test
 top_dir=$(dirname $0)/..
 manage="python $top_dir/freezr/manage.py"
-if [ "$#" -lt 2 ]; then
-    echo "Usage: $0 AWS-ACCESS-KEY AWS-SECRET-KEY [KEY-NAME [REGION]] " >&2
-    exit 2
-fi
-access_key="$1"
-secret_key="$2"
+access_key="${1-$AWS_ACCESS_KEY_ID}"
+secret_key="${2-$AWS_SECRET_ACCESS_KEY}"
 key_name="${3-default}"
-region="${4-us-east-1}"
+region="${4-${AWS_DEFAULT_REGION-us-east-1}}"
 pids=""
 LOG_SUFFIX=${LOG_SUFFIX-}
+
+if [ -z "$access_key" -o -z "$secret_key" ]; then
+    echo "Usage: $0 [AWS-ACCESS-KEY-ID [AWS-SECRET-ACCESS-KEY [KEY-NAME [REGION]]]]
+
+You can also specify these values through environmental variables
+AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_DEFAULT_REGION." >&2
+    exit 2
+fi
 
 function env_setup {
     source $top_dir/virtualenv/bin/activate
@@ -84,7 +88,7 @@ check_add $!
 
 export AWS_ACCESS_KEY_ID=$access_key
 export AWS_SECRET_ACCESS_KEY=$secret_key
-export AWS_REGION=$region
+export AWS_DEFAULT_REGION=$region
 
 $manage runserver 9000 >>freezr$LOG_SUFFIX.log 2>&1 &
 

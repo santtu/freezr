@@ -117,7 +117,7 @@ class Mixin(util.Logger):
         super(Mixin, self).__init__(*args, **kwargs)
         self.AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
         self.AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
-        self.AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
+        self.AWS_REGION = os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
         self._ec2 = None
         self._cache = {}
 
