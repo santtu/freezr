@@ -216,12 +216,13 @@ class Account(BaseModel):
 
         # type switch to keep info level events relevant, "nothing
         # changed" isn't that
-        self.log_entry('Refreshed %d regions in %.2f seconds, '
-                       'total %d / added %d / deleted %d instances' % (
-                len(regions),
-                elapsed.seconds + elapsed.microseconds / 1e6,
-                total, added, deleted),
-                       type=("info" if (added + deleted) > 0 else "verbose"))
+        if len(regions):
+            self.log_entry('Refreshed %d regions in %.2f seconds, '
+                           'total %d / added %d / deleted %d instances' % (
+                    len(regions),
+                    elapsed.seconds + elapsed.microseconds / 1e6,
+                    total, added, deleted),
+                           type=("info" if (added + deleted) > 0 else "verbose"))
 
         # Go through projects that are 'init' state and see if they
         # have any picked or saved instances --- then we move them to

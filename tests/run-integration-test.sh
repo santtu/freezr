@@ -14,8 +14,10 @@ export AWS_DEFAULT_REGION=$region
 export AWS_ACCESS_KEY_ID=$access_key
 export AWS_SECRET_ACCESS_KEY=$secret_key
 
+export LOG_SUFFIX=${LOG_SUFFIX--$(date +%FT%R)}
+
 (cd $top_dir && ./deploy stop ; ./deploy)
-if ./freeze-thaw-aws.sh "$access_key" "$secret_key" "$key_name" "$region"; then
+if ./freeze-thaw-aws.sh "$access_key" "$secret_key" "$key_name" "$region" 2>&1 | tee integration-test$LOG_SUFFIX.log; then
     retval=0
 else
     retval=1

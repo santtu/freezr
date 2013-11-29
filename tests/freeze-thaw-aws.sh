@@ -12,6 +12,7 @@ secret_key="$2"
 key_name="${3-default}"
 region="${4-us-east-1}"
 pids=""
+LOG_SUFFIX=${LOG_SUFFIX-}
 
 function env_setup {
     source $top_dir/virtualenv/bin/activate
@@ -61,7 +62,7 @@ trap 'terminate $?' 0 1 2 15
 # If someone knows how to disable plugins from command line or config,
 # and not globally via rabbitmq-plugin disable that would be nice to
 # know ...
-RABBITMQ_NODENAME=freezr RABBITMQ_SERVER_START_ARGS="-rabbitmq_management listener [{port,9002}] -rabbitmq_stomp tcp_listeners [9003] -rabbitmq_mqtt tcp_listeners [9004] " RABBITMQ_NODE_PORT=9001 rabbitmq-server >>rabbitmq.log 2>&1 &
+RABBITMQ_NODENAME=freezr RABBITMQ_SERVER_START_ARGS="-rabbitmq_management listener [{port,9002}] -rabbitmq_stomp tcp_listeners [9003] -rabbitmq_mqtt tcp_listeners [9004] " RABBITMQ_NODE_PORT=9001 rabbitmq-server >>rabbitmq$LOG_SUFFIX.log 2>&1 &
 check_add $!
 
 export PYTHONPATH=$top_dir/freezr:$cur_dir
@@ -75,17 +76,17 @@ env_setup
 
 (rm -f db.sqlite3 && \
     $manage syncdb --noinput && \
-    $manage loaddata $test_dir/fixtures.yaml) >>freezr.log 2>&1
+    $manage loaddata $test_dir/fixtures.yaml) >>freezr$LOG_SUFFIX.log 2>&1
 
 # Celery ..
-$manage celeryd -B -E -l debug --pidfile celeryd.pid >>celeryd.log 2>&1 &
+$manage celeryd -B -E -l debug --pidfile celeryd.pid >>celeryd$LOG_SUFFIX.log 2>&1 &
 check_add $!
 
 export AWS_ACCESS_KEY_ID=$access_key
 export AWS_SECRET_ACCESS_KEY=$secret_key
 export AWS_REGION=$region
 
-$manage runserver 9000 >>freezr.log 2>&1 &
+$manage runserver 9000 >>freezr$LOG_SUFFIX.log 2>&1 &
 
 # can't use $! here, see https://code.djangoproject.com/ticket/19137
 # the extra sleep is *required*
