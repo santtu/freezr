@@ -71,7 +71,7 @@ def refresh(self, older_than=ACCOUNT_UPDATE_INTERVAL, regions=None):
 
     for account in Account.objects.filter(active=True).all():
         if account.updated is None or account.updated <= limit:
-            tasks.add(refresh_account.si(account.id, older_than=older_than))
+            tasks.append(refresh_account.si(account.id, older_than=older_than))
         else:
             log.debug('Account %r update newer than %d seconds, '
                       'not refreshing',
