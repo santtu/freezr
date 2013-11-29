@@ -65,7 +65,7 @@ def refresh(self, older_than=ACCOUNT_UPDATE_INTERVAL, regions=None):
     `older_than` seconds."""
 
     limit = timezone.now() - timedelta(seconds=older_than)
-    tasks = set()
+    tasks = list()
 
     log.info('Refresh All: limit %d seconds', older_than)
 
