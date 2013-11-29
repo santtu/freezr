@@ -5,7 +5,7 @@
 What is **freezr**? Here's in a nutshell what freezr allows you to do:
 
 * Define *domains*, which is just a method of grouping *accounts*.
-* Define *accounts*, which map to an `AWS <http://aws.amazon.com/>`
+* Define *accounts*, which map to an `AWS <http://aws.amazon.com/>`_
   accounts with access credentials.
 * Define *projects*, tied to an *account*, and which defines *regions*
   and *filters* to split *instances* running on that account into
@@ -96,5 +96,5 @@ How to contribute
 =================
 
 Fork, submit patches. See planned list above or even better, check the
-`taskboard at trello <http://bit.ly/1eF8d3c>`. Contact me and ask to
+`taskboard at trello <http://bit.ly/1eF8d3c>`_. Contact me and ask to
 be added to the board and project.
