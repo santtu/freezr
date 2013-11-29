@@ -1,4 +1,6 @@
 #!/bin/bash -e
+########################################################################
+
 top_dir=$(dirname $0)
 cfn=$top_dir/cfn/testnetworks.cfn.json
 cfn_temp=$TMPDIR/testnetworks.cfn.filtered.json
@@ -8,6 +10,10 @@ if [ "$1" = "stop" ]; then
     shift
 fi
 stack=${1-freezr-test}
+
+########################################################################
+
+# original json file is commented, strip comments away
 egrep -v '^[ 	]*//' $cfn >$cfn_temp
 
 function running {
@@ -16,7 +22,7 @@ function running {
 }
 
 function state {
-    aws --output json cloudformation describe-stack-events --max-items 1 --stack-name $stack | json '.StackEvents[0].ResourceStatus'
+    aws --output json cloudformation describe-stacks --stack-name $stack | json '.Stacks[0].StackStatus'
     return $?
 }
 
