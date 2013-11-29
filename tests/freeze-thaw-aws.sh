@@ -7,9 +7,9 @@ access_key="${1-$AWS_ACCESS_KEY_ID}"
 secret_key="${2-$AWS_SECRET_ACCESS_KEY}"
 key_name="${3-default}"
 region="${4-${AWS_DEFAULT_REGION-us-east-1}}"
-pids=""
 LOG_PREFIX=${LOG_PREFIX-}
 LOG_SUFFIX=${LOG_SUFFIX-}
+pids=()
 
 if [ -z "$access_key" -o -z "$secret_key" ]; then
     echo "Usage: $0 [AWS-ACCESS-KEY-ID [AWS-SECRET-ACCESS-KEY [KEY-NAME [REGION]]]]
@@ -28,26 +28,43 @@ function logname {
     return 0
 }
 
+function pidof {
+    if [[ ! "$1" =~ ^[0-9]+$ ]]; then
+	pgrep -f "$1" | tr '\n' ' '
+    else
+	echo -n "$1 "
+    fi
+    return 0
+}
+
+function allpids {
+    for pid in "${pids[@]}"; do
+	pidof "$pid"
+    done
+    return 0
+}
+
 function terminate {
     set +e
     code="$1"
-    [ -z "$pids" ] && exit $code
+    [[ ${#pids[@]} == 0 ]] && exit $code
     echo -n "Terminate, killing pids ... "
-    if [ -n "$pids" ]; then
-	for pid in $pids; do
-	    echo -n "$pid "
-	    (kill -- -$pid; kill $pid; sleep 1; kill -9 -- -$pid; kill -9 $pid) >/dev/null 2>/dev/null
-	done
-    fi
+    # for pid in "${pids[@]}"; do
+    # 	pid=$(pidof "$pid")
+    for pid in $(allpids); do
+	echo -n "$pid "
+	(kill -- -$pid; kill $pid; sleep 1; kill -9 -- -$pid; kill -9 $pid) >/dev/null 2>/dev/null
+    done
+
     echo "done"
-    pids=""
+    pids=()
     exit $code
 }
 
 function check {
     for pid in "$@"
     do
-	if ! kill -0 $pid >/dev/null 2>&1; then
+	if ! kill -0 $(pidof "$pid") >/dev/null 2>&1; then
 	    return 1
 	fi
     done
@@ -57,19 +74,19 @@ function check {
 function check_add {
     name="$1"
     pid="$2"
-    pids="$pid $pids"
+    pids+=("$pid")
 
     if [ -z "$pid" ]; then
 	echo "No child detected ..."
 	exit 1
     fi
 
-    if ! check $pid; then
+    if ! check "$pid"; then
 	echo "Child $pid ($name) died ..."
 	exit 1
     fi
 
-    echo -n "$pid "
+    echo -n $(pidof "$pid")" "
 }
 
 trap 'terminate $?' 0 1 2 15
@@ -118,10 +135,10 @@ echo -n "Starting application server ... "
 $manage runserver 9000 >>$(logname freezr) 2>&1 &
 # can't use $! here, see https://code.djangoproject.com/ticket/19137
 # the extra sleep is *required*
-sleep 5; check_add "manage.py runserver 9000" $(pgrep -f 'runserver 9000')
+sleep 5; check_add "manage.py runserver 9000" 'runserver 9000'
 echo "done"
 
-echo "Starting test suite, child pids are $pids"
+echo "Starting test suite, child pids are $(allpids)"
 
 # finally we can run nosetests -- use -x due to interdependence of
 # tests (if one fails, others might block etc.)
