@@ -8,3 +8,6 @@ celerybeat-schedule.db
 celeryd.log
 runserver.log
 celeryd.pid
+build/
+freezr.egg-info/
+dist/
