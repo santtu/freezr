@@ -298,6 +298,44 @@ class Mixin(util.Logger):
 
         return not self.project_in_state(project, states)
 
+    def instance_states(self):
+        states = [i.state
+                  for i in self.ec2.get_only_instances()
+                  if i.state not in ('terminated', 'shutting-down')]
+        counts = {s: states.count(s) for s in set(states)}
+        self.log.debug("instance states: %r", counts)
+        return counts
+
+    def until_instances_in_state(self, **states):
+        """Wait until instances match the given states counts."""
+        timeout = self.timeout()
+        while not timeout:
+            counts = self.instance_states()
+            if counts == states:
+                return
+
+            time.sleep(2)
+
+    def until_instances_only_in_states(self, wanted_states):
+        """Wait until instances are in the given list of states
+        (regardless of number of instances, compare to
+        until_instances_in_state.)"""
+        wanted_states = set(wanted_states)
+        timeout = self.timeout()
+        while not timeout:
+            states = set(self.instance_states().keys())
+
+            # If states is a subset of wanted states, we have a
+            # result.
+            if states < wanted_states:
+                return
+
+            time.sleep(2)
+
+    def assertInstanceStates(self, **expected_counts):
+        counts = self.instance_states()
+        self.assertEqual(counts, expected_counts)
+
     def cleanup(self, data):
         """Remove entries from data meant for POST/PUT/PATCH
         operation. This removes read-only fields like `log_entries`

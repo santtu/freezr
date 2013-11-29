@@ -11,27 +11,6 @@ class NonDestructiveTests(Mixin, unittest.TestCase):
     is, unless there's bug or a test fails in which case all bets are
     off."""
 
-    def instance_states(self):
-        states = [i.state
-                  for i in self.ec2.get_only_instances()
-                  if i.state not in ('terminated', 'shutting-down')]
-        counts = {s: states.count(s) for s in set(states)}
-        self.log.debug("instance states: %r", counts)
-        return counts
-
-    def until_instances_in_state(self, **states):
-        timeout = self.timeout()
-        while not timeout:
-            counts = self.instance_states()
-            if counts == states:
-                return
-
-            time.sleep(2)
-
-    def assertInstanceStates(self, **expected_counts):
-        counts = self.instance_states()
-        self.assertEqual(counts, expected_counts)
-
     def assertFilterCounts(self, data, counts):
         for field, expected in zip(('picked_instances', 'saved_instances',
                                     'terminated_instances', 'skipped_instances'),
