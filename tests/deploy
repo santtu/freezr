@@ -1,6 +1,6 @@
 #!/bin/bash -e
 top_dir=$(dirname $0)
-cfn=$top_dir/lib/testnetworks.cfn.json
+cfn=$top_dir/cfn/testnetworks.cfn.json
 cfn_temp=$TMPDIR/testnetworks.cfn.filtered.json
 
 if [ "$1" = "stop" ]; then
@@ -61,15 +61,15 @@ do
 
     s=$(state)
 
-    case $(state) in
+    case $s in
 	CREATE_COMPLETE)
-	    echo ' done'
+	    echo " done ($s)"
 	    exit 0
 	    ;;
 	CREATE_IN_PROGRESS)
 	    ;;
 	*)
-	    echo "error\nERROR: Stack in unexpected state $(state), stopping"
+	    echo "error\nERROR: Stack in unexpected state $s, stopping"
 	    exit 1
 	    ;;
     esac

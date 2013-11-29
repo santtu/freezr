@@ -3,7 +3,7 @@
 #    split-window "celery --autoreload -A freezr worker -l info -C" \; \
 #    set-window-option -g synchronize-panes on \; \
 top_dir=$(dirname $0)
-app_dir=$top_dir/freezr
+app_dir=$top_dir
 env="source $top_dir/virtualenv/bin/activate &&"
 nw=new-window
 tmux \

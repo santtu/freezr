@@ -1,6 +1,6 @@
 #!/bin/bash -e
 cur_dir=$(dirname $0)
-top_dir=$(dirname $0)/..
+top_dir=$cur_dir
 
 export LOG_SUFFIX=${LOG_SUFFIX--$(date +%FT%R)}
 

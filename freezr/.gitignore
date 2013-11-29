@@ -1,5 +1,0 @@
-db.sqlite3
-celerybeat-schedule.db
-celeryd.log
-runserver.log
-celeryd.pid
