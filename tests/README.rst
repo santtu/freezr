@@ -18,6 +18,8 @@ Prerequisites
 * AWS credentials with permissions for `ec2:*` and `cloudformation:*`
   actions.
 
+* `AWS CLI tool <http://aws.amazon.com/cli/>`_
+
 Running tests
 =============
 
