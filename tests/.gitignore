@@ -1,4 +1,5 @@
 *.log
+logs/
 db.sqlite3
 celerybeat-schedule.db
 celeryd.pid

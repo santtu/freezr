@@ -20,6 +20,8 @@ Prerequisites
 
 * `AWS CLI tool <http://aws.amazon.com/cli/>`_
 
+* Trent Mick's `excellent command-line \`json\` tool <http://trentm.com/json/>`_.
+
 Running tests
 =============
 

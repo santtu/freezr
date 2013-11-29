@@ -5,9 +5,8 @@ os.environ['DONT_IMPORT_CELERY'] = 'true'
 
 from freezr.settings import *
 
-# testserver runs at 9000, put broker at 9001
-BROKER_URL = 'amqp://guest@localhost:9001//'
-CELERYBEAT_SCHEDULER = None
+BROKER_URL = 'amqp://guest@localhost/freezr_testing'
+CELERYBEAT_SCHEDULER = None #disable periodic tasks during testing
 
 # move db to our location, not in src tree
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))

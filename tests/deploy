@@ -69,13 +69,21 @@ do
 
     case $s in
 	CREATE_COMPLETE)
-	    echo " done ($s)"
+	    echo " done"
 	    exit 0
 	    ;;
 	CREATE_IN_PROGRESS)
 	    ;;
 	*)
-	    echo "error\nERROR: Stack in unexpected state $s, stopping"
+	    echo " error
+ERROR: Stack in unexpected state $s, stopping"
+
+	    aws --output json cloudformation describe-stack-events --stack-name $stack | \
+		json StackEvents | \
+		json -c 'ResourceStatus == "CREATE_FAILED"' | \
+		json -a Timestamp ResourceStatusReason | \
+		tail -r
+
 	    exit 1
 	    ;;
     esac

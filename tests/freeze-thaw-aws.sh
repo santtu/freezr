@@ -1,13 +1,14 @@
 #!/bin/bash -e
 cur_dir=$(dirname $0)
-test_dir=$cur_dir/freeze_thaw_aws_test
 top_dir=$(dirname $0)/..
-manage="python $top_dir/freezr/manage.py"
+test_dir=$cur_dir/freeze_thaw_aws_test
+manage="python $top_dir/manage.py"
 access_key="${1-$AWS_ACCESS_KEY_ID}"
 secret_key="${2-$AWS_SECRET_ACCESS_KEY}"
 key_name="${3-default}"
 region="${4-${AWS_DEFAULT_REGION-us-east-1}}"
 pids=""
+LOG_PREFIX=${LOG_PREFIX-}
 LOG_SUFFIX=${LOG_SUFFIX-}
 
 if [ -z "$access_key" -o -z "$secret_key" ]; then
@@ -22,16 +23,24 @@ function env_setup {
     source $top_dir/virtualenv/bin/activate
 }
 
+function logname {
+    echo "${LOG_PREFIX}$1${LOG_SUFFIX}.log"
+    return 0
+}
+
 function terminate {
     set +e
-    echo "Terminate, killing pids $pids"
     code="$1"
+    [ -z "$pids" ] && exit $code
+    echo -n "Terminate, killing pids ... "
     if [ -n "$pids" ]; then
 	for pid in $pids; do
-	    (kill -- -$pid; kill $pid) >/dev/null 2>/dev/null
+	    echo -n "$pid "
+	    (kill -- -$pid; kill $pid; sleep 1; kill -9 -- -$pid; kill -9 $pid) >/dev/null 2>/dev/null
 	done
     fi
-    sleep 1
+    echo "done"
+    pids=""
     exit $code
 }
 
@@ -46,7 +55,8 @@ function check {
 }
 
 function check_add {
-    pid="$1"
+    name="$1"
+    pid="$2"
     pids="$pid $pids"
 
     if [ -z "$pid" ]; then
@@ -54,22 +64,31 @@ function check_add {
 	exit 1
     fi
 
-    sleep 5
     if ! check $pid; then
-	echo "Child $pid died ..."
+	echo "Child $pid ($name) died ..."
 	exit 1
     fi
+
+    echo -n "$pid "
 }
 
 trap 'terminate $?' 0 1 2 15
 
-# If someone knows how to disable plugins from command line or config,
-# and not globally via rabbitmq-plugin disable that would be nice to
-# know ...
-RABBITMQ_NODENAME=freezr RABBITMQ_SERVER_START_ARGS="-rabbitmq_management listener [{port,9002}] -rabbitmq_stomp tcp_listeners [9003] -rabbitmq_mqtt tcp_listeners [9004] " RABBITMQ_NODE_PORT=9001 rabbitmq-server >>rabbitmq$LOG_SUFFIX.log 2>&1 &
-check_add $!
+# See if there is rabbitmq-server already running, if not, spawn one.
+if ! rabbitmqctl status >/dev/null 2>&1; then
+    echo -n "RabbitMQ server not running, starting temporary server ... "
+    rabbitmq-server >>$(logname rabbitmq) 2>&1 &
+    sleep 5; check_add "rabbitmq-server" $!
+    echo "done"
+fi
 
-export PYTHONPATH=$top_dir/freezr:$cur_dir
+if [ -z "$(rabbitmqctl list_vhosts | grep freezr_testing)" ]; then
+    echo "Creating freezr_testing vhost on RabbitMQ server ... "
+    rabbitmqctl add_vhost freezr_testing
+    rabbitmqctl set_permissions -p freezr_testing guest '.*' '.*' '.*'
+fi
+
+export PYTHONPATH=$top_dir:$cur_dir
 export DJANGO_SETTINGS_MODULE=freeze_thaw_aws_test.settings
 
 # Can't use testserver, it creates in-memory database and celery needs
@@ -78,23 +97,29 @@ export DJANGO_SETTINGS_MODULE=freeze_thaw_aws_test.settings
 
 env_setup
 
+echo -n "Initializing test database ... "
 (rm -f db.sqlite3 && \
     $manage syncdb --noinput && \
-    $manage loaddata $test_dir/fixtures.yaml) >>freezr$LOG_SUFFIX.log 2>&1
+    $manage loaddata $test_dir/fixtures.yaml) >>$(logname freezr) 2>&1
+echo "done"
 
 # Celery ..
-$manage celeryd -B -E -l debug --pidfile celeryd.pid >>celeryd$LOG_SUFFIX.log 2>&1 &
-check_add $!
+echo -n "Starting celeryd ... "
+rm -f celeryd.pid
+$manage celeryd --concurrency 1 -B -l debug --pidfile celeryd.pid >>$(logname celeryd) 2>&1 &
+sleep 5; check_add "manage.py celeryd" "$(cat celeryd.pid)"
+echo "done"
 
 export AWS_ACCESS_KEY_ID=$access_key
 export AWS_SECRET_ACCESS_KEY=$secret_key
 export AWS_DEFAULT_REGION=$region
 
-$manage runserver 9000 >>freezr$LOG_SUFFIX.log 2>&1 &
-
+echo -n "Starting application server ... "
+$manage runserver 9000 >>$(logname freezr) 2>&1 &
 # can't use $! here, see https://code.djangoproject.com/ticket/19137
 # the extra sleep is *required*
-sleep 1; check_add $(pgrep -f 'runserver 9000')
+sleep 5; check_add "manage.py runserver 9000" $(pgrep -f 'runserver 9000')
+echo "done"
 
 echo "Starting test suite, child pids are $pids"
 
