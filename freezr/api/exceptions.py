@@ -1,4 +1,4 @@
-from freezr.models import LogEntry
+from freezr.core.models import LogEntry
 import traceback
 import logging
 

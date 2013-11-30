@@ -1,5 +1,6 @@
+from __future__ import absolute_import
 import unittest
-import util
+from . import util
 
 class ValidateAws(util.Mixin, unittest.TestCase):
     def test01AwsConnection(self):

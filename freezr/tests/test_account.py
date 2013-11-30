@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from django import test
 import logging
 import time
-from freezr.models import Account, Domain, Project, Instance
+from freezr.core.models import Account, Domain, Project, Instance
 from django.db.models import Q
 from .util import AwsMock, FreezrTestCaseMixin
 

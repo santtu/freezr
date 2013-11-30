@@ -1,8 +1,8 @@
 from rest_framework import serializers
-from freezr.models import *
-from freezr.util import separator_split
+from freezr.core.models import *
+from freezr.common.util import separator_split
 import logging
-from freezr.celery.tasks import refresh_account, dispatch
+from freezr.backend.tasks import refresh_account, dispatch
 from itertools import chain
 from collections import Counter
 

@@ -3,7 +3,7 @@ import requests
 import logging
 import json
 import boto.ec2
-import freezr.util as util
+import freezr.common.util as util
 import logging
 import time
 import copy

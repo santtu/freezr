@@ -1,6 +1,6 @@
 import unittest
 import logging
-from freezr.filter import Filter, ParseException
+from freezr.core.filter import Filter, ParseException
 
 log = logging.getLogger('freezr.tests.test_filter')
 

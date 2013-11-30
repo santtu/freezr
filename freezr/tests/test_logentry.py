@@ -1,7 +1,7 @@
 from django import test
 import logging
-from freezr.models import Account, Domain, Project, Instance, LogEntry
-from freezr.exceptions import LoggedException, log_save
+from freezr.core.models import Account, Domain, Project, Instance, LogEntry
+from freezr.api.exceptions import LoggedException, log_save
 from django.db.models import Q
 
 log = logging.getLogger(__file__)

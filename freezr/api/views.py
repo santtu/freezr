@@ -1,6 +1,7 @@
-from freezr.models import *
-from freezr.serializers import *
-from freezr.celery.tasks import dispatch, refresh_account, freeze_project, thaw_project
+from __future__ import absolute_import
+from freezr.core.models import *
+from .serializers import *
+from freezr.backend.tasks import dispatch, refresh_account, freeze_project, thaw_project
 from django.http import Http404
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -9,7 +10,7 @@ from rest_framework.exceptions import MethodNotAllowed
 from rest_framework import status
 from rest_framework import generics
 from rest_framework import viewsets, routers
-import freezr.util as util
+import freezr.common.util as util
 import traceback
 
 class BaseViewSet(util.Logger, viewsets.ModelViewSet):

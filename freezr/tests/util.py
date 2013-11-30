@@ -110,13 +110,13 @@ def with_aws(aws):
             self.old_aws = None
 
         def __enter__(self):
-            import freezr.aws
-            self.old_aws = freezr.aws.AwsInterface
-            freezr.aws.AwsInterface = self.aws
+            import freezr.backend.aws
+            self.old_aws = freezr.backend.aws.AwsInterface
+            freezr.backend.aws.AwsInterface = self.aws
 
         def __exit__(self, type, value, traceback):
-            import freezr.aws
-            freezr.aws.AwsInterface = self.old_aws
+            import freezr.backend.aws
+            freezr.backend.aws.AwsInterface = self.old_aws
 
     return inner(aws)
 

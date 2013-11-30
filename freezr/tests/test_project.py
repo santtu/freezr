@@ -1,6 +1,6 @@
 from django import test
 import logging
-from freezr.models import Account, Domain, Project, Instance
+from freezr.core.models import Account, Domain, Project, Instance
 from django.db.models import Q
 import freezr.tests.util as util
 

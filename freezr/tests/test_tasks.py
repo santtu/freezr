@@ -1,9 +1,9 @@
 from __future__ import absolute_import
 import logging
-from freezr.models import Account, Domain, Project, Instance
+from freezr.core.models import Account, Domain, Project, Instance
 from django import test
 from .util import AwsMockFactory, with_aws, AttrDict
-import freezr.celery.tasks as tasks
+import freezr.backend.tasks as tasks
 from django.utils import timezone
 from datetime import timedelta, datetime
 

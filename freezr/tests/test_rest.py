@@ -1,9 +1,8 @@
 from __future__ import absolute_import
 import logging
 import time
-from freezr.models import Account, Domain, Project, Instance
+from freezr.core.models import Account, Domain, Project, Instance
 from django.db.models import Q
-import freezr.urls
 import pytz
 from rest_framework import test
 from django.core.urlresolvers import reverse
@@ -14,6 +13,7 @@ import copy
 from .util import AwsMockFactory, with_aws
 from django.utils import timezone
 from datetime import timedelta
+import freezr.backend
 
 log = logging.getLogger(__file__)
 
@@ -245,7 +245,7 @@ class TestREST(test.APITestCase):
             self.assertNotEqual(Account.objects.get(pk=1).updated, old)
 
             factory = AwsMockFactory()
-            freezr.aws.AwsInterface = factory
+            freezr.backend.aws.AwsInterface = factory
 
             old = Account.objects.get(pk=3).updated
             response = self.client.post(reverse('account-refresh', args=[3]))

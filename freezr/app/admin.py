@@ -3,8 +3,8 @@ from django import forms
 from django.forms import widgets
 import django.contrib.auth.models
 import django.contrib.auth.admin
-from freezr.models import *
-import freezr.util as util
+from freezr.core.models import *
+import freezr.common.util as util
 import logging
 
 log = logging.getLogger('freezr.admin')

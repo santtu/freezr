@@ -3,7 +3,7 @@
 import os
 os.environ['DONT_IMPORT_CELERY'] = 'true'
 
-from freezr.settings import *
+from freezr.app.settings.development import *
 
 BROKER_URL = 'amqp://guest@localhost/freezr_testing'
 CELERYBEAT_SCHEDULER = None #disable periodic tasks during testing
@@ -44,4 +44,4 @@ LOGGING = {
         }
     }
 
-import freezr.celery
+import freezr.backend.celery

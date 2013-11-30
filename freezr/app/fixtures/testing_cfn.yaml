@@ -1,0 +1,402 @@
+- fields: {access_key: 'invalid 1', active: false, domain: 1, name: AWS account,
+    secret_key: invalid, updated: ! '2013-12-02 12:22:25.967786+00:00'}
+  model: core.account
+  pk: 1
+- fields: {access_key: 'invalid 2', active: false, domain: 2, name: Dummy account,
+    secret_key: 'invalid', updated: null}
+  model: core.account
+  pk: 2
+- fields: {instance: 1, key: freezrtest, value: 'true'}
+  model: core.instancetag
+  pk: 1
+- fields: {instance: 1, key: Name, value: slave01}
+  model: core.instancetag
+  pk: 2
+- fields: {instance: 1, key: service, value: public}
+  model: core.instancetag
+  pk: 3
+- fields: {instance: 1, key: 'aws:cloudformation:logical-id', value: pubSlave01}
+  model: core.instancetag
+  pk: 4
+- fields: {instance: 1, key: 'aws:cloudformation:stack-id', value: 'arn:aws:cloudformation:us-east-1:319066637663:stack/freezr-test/df094960-5b3c-11e3-ba4b-500150b34c7c'}
+  model: core.instancetag
+  pk: 5
+- fields: {instance: 1, key: 'aws:cloudformation:stack-name', value: freezr-test}
+  model: core.instancetag
+  pk: 6
+- fields: {instance: 1, key: role, value: slave}
+  model: core.instancetag
+  pk: 7
+- fields: {instance: 2, key: freezrtest, value: 'true'}
+  model: core.instancetag
+  pk: 8
+- fields: {instance: 2, key: Name, value: master}
+  model: core.instancetag
+  pk: 9
+- fields: {instance: 2, key: service, value: vpc}
+  model: core.instancetag
+  pk: 10
+- fields: {instance: 2, key: 'aws:cloudformation:logical-id', value: vpcMaster}
+  model: core.instancetag
+  pk: 11
+- fields: {instance: 2, key: 'aws:cloudformation:stack-id', value: 'arn:aws:cloudformation:us-east-1:319066637663:stack/freezr-test/df094960-5b3c-11e3-ba4b-500150b34c7c'}
+  model: core.instancetag
+  pk: 12
+- fields: {instance: 2, key: 'aws:cloudformation:stack-name', value: freezr-test}
+  model: core.instancetag
+  pk: 13
+- fields: {instance: 2, key: role, value: ci}
+  model: core.instancetag
+  pk: 14
+- fields: {instance: 3, key: freezrtest, value: 'true'}
+  model: core.instancetag
+  pk: 15
+- fields: {instance: 3, key: Name, value: master}
+  model: core.instancetag
+  pk: 16
+- fields: {instance: 3, key: service, value: public}
+  model: core.instancetag
+  pk: 17
+- fields: {instance: 3, key: 'aws:cloudformation:logical-id', value: pubMaster}
+  model: core.instancetag
+  pk: 18
+- fields: {instance: 3, key: 'aws:cloudformation:stack-id', value: 'arn:aws:cloudformation:us-east-1:319066637663:stack/freezr-test/df094960-5b3c-11e3-ba4b-500150b34c7c'}
+  model: core.instancetag
+  pk: 19
+- fields: {instance: 3, key: 'aws:cloudformation:stack-name', value: freezr-test}
+  model: core.instancetag
+  pk: 20
+- fields: {instance: 3, key: role, value: ci}
+  model: core.instancetag
+  pk: 21
+- fields: {instance: 4, key: freezrtest, value: 'true'}
+  model: core.instancetag
+  pk: 22
+- fields: {instance: 4, key: Name, value: nat}
+  model: core.instancetag
+  pk: 23
+- fields: {instance: 4, key: service, value: vpc}
+  model: core.instancetag
+  pk: 24
+- fields: {instance: 4, key: 'aws:cloudformation:logical-id', value: vpcNatGateway}
+  model: core.instancetag
+  pk: 25
+- fields: {instance: 4, key: 'aws:cloudformation:stack-id', value: 'arn:aws:cloudformation:us-east-1:319066637663:stack/freezr-test/df094960-5b3c-11e3-ba4b-500150b34c7c'}
+  model: core.instancetag
+  pk: 26
+- fields: {instance: 4, key: 'aws:cloudformation:stack-name', value: freezr-test}
+  model: core.instancetag
+  pk: 27
+- fields: {instance: 4, key: role, value: infra}
+  model: core.instancetag
+  pk: 28
+- fields: {instance: 5, key: freezrtest, value: 'true'}
+  model: core.instancetag
+  pk: 29
+- fields: {instance: 5, key: Name, value: slave02}
+  model: core.instancetag
+  pk: 30
+- fields: {instance: 5, key: service, value: vpc}
+  model: core.instancetag
+  pk: 31
+- fields: {instance: 5, key: 'aws:cloudformation:logical-id', value: vpcSlave02}
+  model: core.instancetag
+  pk: 32
+- fields: {instance: 5, key: 'aws:cloudformation:stack-id', value: 'arn:aws:cloudformation:us-east-1:319066637663:stack/freezr-test/df094960-5b3c-11e3-ba4b-500150b34c7c'}
+  model: core.instancetag
+  pk: 33
+- fields: {instance: 5, key: 'aws:cloudformation:stack-name', value: freezr-test}
+  model: core.instancetag
+  pk: 34
+- fields: {instance: 5, key: role, value: slave}
+  model: core.instancetag
+  pk: 35
+- fields: {instance: 6, key: freezrtest, value: 'true'}
+  model: core.instancetag
+  pk: 36
+- fields: {instance: 6, key: Name, value: slave01}
+  model: core.instancetag
+  pk: 37
+- fields: {instance: 6, key: service, value: vpc}
+  model: core.instancetag
+  pk: 38
+- fields: {instance: 6, key: 'aws:cloudformation:logical-id', value: vpcSlave01}
+  model: core.instancetag
+  pk: 39
+- fields: {instance: 6, key: 'aws:cloudformation:stack-id', value: 'arn:aws:cloudformation:us-east-1:319066637663:stack/freezr-test/df094960-5b3c-11e3-ba4b-500150b34c7c'}
+  model: core.instancetag
+  pk: 40
+- fields: {instance: 6, key: 'aws:cloudformation:stack-name', value: freezr-test}
+  model: core.instancetag
+  pk: 41
+- fields: {instance: 6, key: role, value: slave}
+  model: core.instancetag
+  pk: 42
+- fields: {account: 1, instance_id: i-f8e7f483, region: us-east-1, state: running,
+    store: ebs, type: t1.micro, vpc_id: null}
+  model: core.instance
+  pk: 1
+- fields: {account: 1, instance_id: i-b6099ecd, region: us-east-1, state: running,
+    store: ebs, type: t1.micro, vpc_id: vpc-ec6d7b8e}
+  model: core.instance
+  pk: 2
+- fields: {account: 1, instance_id: i-b8099ec3, region: us-east-1, state: running,
+    store: ebs, type: t1.micro, vpc_id: null}
+  model: core.instance
+  pk: 3
+- fields: {account: 1, instance_id: i-7364a10a, region: us-east-1, state: running,
+    store: ebs, type: t1.micro, vpc_id: vpc-ec6d7b8e}
+  model: core.instance
+  pk: 4
+- fields: {account: 1, instance_id: i-8615dffa, region: us-east-1, state: running,
+    store: ebs, type: t1.micro, vpc_id: vpc-ec6d7b8e}
+  model: core.instance
+  pk: 5
+- fields: {account: 1, instance_id: i-ace86fd0, region: us-east-1, state: running,
+    store: ebs, type: t1.micro, vpc_id: vpc-ec6d7b8e}
+  model: core.instance
+  pk: 6
+- fields: {_regions: us-east-1, account: 1, description: '', name: Project in public
+      network, pick_filter: 'tag[freezrtest] and tag[service] = public', save_filter: 'tag[role]
+      = ci', state: running, terminate_filter: 'tag[role] = slave'}
+  model: core.project
+  pk: 1
+- fields: {_regions: us-east-1, account: 1, description: '', name: Project in VPC,
+    pick_filter: 'tag[freezrtest] and tag[service] = "vpc"', save_filter: 'tag[role]
+      = ci', state: running, terminate_filter: 'tag[role] = slave'}
+  model: core.project
+  pk: 2
+- fields: {active: true, description: '', domain: freezr.test.local, name: Freezr
+      integration test domain, owner: null}
+  model: core.domain
+  pk: 1
+- fields: {active: true, description: '', domain: dummy.local, name: Dummay domain,
+    owner: null}
+  model: core.domain
+  pk: 2
+- fields: {account: 1, details: 'Added: us-east-1
+
+      Removed: none', domain: null, message: Regions changed, project: null, system_error: false,
+    time: ! '2013-12-02 12:17:58.564379+00:00', type: info, user: null}
+  model: core.logentry
+  pk: 1
+- fields: {account: 1, details: null, domain: null, message: 'Refreshed 1 regions
+      in 1.61 seconds, total 6 / added 6 / deleted 0 instances', project: null, system_error: false,
+    time: ! '2013-12-02 12:18:17.696734+00:00', type: info, user: null}
+  model: core.logentry
+  pk: 2
+- fields: {account: null, details: null, domain: null, message: Moving AWS account/AKIAJH3LIPN74P3XO3UQ/Project
+      in public network from initializing to running state, project: 1, system_error: false,
+    time: ! '2013-12-02 12:18:17.707821+00:00', type: info, user: null}
+  model: core.logentry
+  pk: 3
+- fields: {account: null, details: null, domain: null, message: Moving AWS account/AKIAJH3LIPN74P3XO3UQ/Project
+      in VPC from initializing to running state, project: 2, system_error: false,
+    time: ! '2013-12-02 12:18:17.717904+00:00', type: info, user: null}
+  model: core.logentry
+  pk: 4
+- fields: {account: 1, details: null, domain: null, message: 'Refreshed 1 regions
+      in 1.62 seconds, total 6 / added 0 / deleted 0 instances', project: null, system_error: false,
+    time: ! '2013-12-02 12:18:50.453902+00:00', type: verbose, user: null}
+  model: core.logentry
+  pk: 5
+- fields: {account: 1, details: 'Added: none
+
+      Removed: us-east-1', domain: null, message: Regions changed, project: null,
+    system_error: false, time: ! '2013-12-02 12:18:51.888096+00:00', type: info, user: null}
+  model: core.logentry
+  pk: 6
+- fields: {account: 1, details: 'Instances: i-7364a10a, i-8615dffa, i-ace86fd0, i-b6099ecd,
+      i-b8099ec3, i-f8e7f483', domain: null, message: Removed 6 instances from regions
+      not used, project: null, system_error: false, time: ! '2013-12-02 12:18:51.928934+00:00',
+    type: info, user: null}
+  model: core.logentry
+  pk: 7
+- fields: {account: 1, details: 'Added: us-east-1
+
+      Removed: none', domain: null, message: Regions changed, project: null, system_error: false,
+    time: ! '2013-12-02 12:18:51.998889+00:00', type: info, user: null}
+  model: core.logentry
+  pk: 8
+- fields: {account: 1, details: null, domain: null, message: 'Refreshed 1 regions
+      in 2.29 seconds, total 6 / added 6 / deleted 0 instances', project: null, system_error: false,
+    time: ! '2013-12-02 12:19:12.128585+00:00', type: info, user: null}
+  model: core.logentry
+  pk: 9
+- fields: {account: 1, details: null, domain: null, message: 'Refreshed 1 regions
+      in 1.94 seconds, total 6 / added 0 / deleted 0 instances', project: null, system_error: false,
+    time: ! '2013-12-02 12:19:18.039795+00:00', type: verbose, user: null}
+  model: core.logentry
+  pk: 10
+- fields: {account: null, details: null, domain: null, message: Freezing project,
+    project: 2, system_error: false, time: ! '2013-12-02 12:19:18.106837+00:00', type: info,
+    user: null}
+  model: core.logentry
+  pk: 11
+- fields: {account: null, details: null, domain: null, message: 'Froze project, terminated
+      0 instances, stopped 0 instances in 0.00 seconds', project: 2, system_error: false,
+    time: ! '2013-12-02 12:19:18.185523+00:00', type: info, user: null}
+  model: core.logentry
+  pk: 12
+- fields: {account: 1, details: null, domain: null, message: Froze project AWS account/AKIAJH3LIPN74P3XO3UQ/Project
+      in VPC, project: null, system_error: false, time: ! '2013-12-02 12:19:18.186968+00:00',
+    type: info, user: null}
+  model: core.logentry
+  pk: 13
+- fields: {account: 1, details: null, domain: null, message: 'Refreshed 1 regions
+      in 1.80 seconds, total 6 / added 0 / deleted 0 instances', project: null, system_error: false,
+    time: ! '2013-12-02 12:19:20.024392+00:00', type: verbose, user: null}
+  model: core.logentry
+  pk: 14
+- fields: {account: 1, details: null, domain: null, message: 'Refreshed 1 regions
+      in 1.96 seconds, total 6 / added 0 / deleted 0 instances', project: null, system_error: false,
+    time: ! '2013-12-02 12:19:23.419247+00:00', type: verbose, user: null}
+  model: core.logentry
+  pk: 15
+- fields: {account: null, details: null, domain: null, message: Thawing project, project: 2,
+    system_error: false, time: ! '2013-12-02 12:19:23.474004+00:00', type: info, user: null}
+  model: core.logentry
+  pk: 16
+- fields: {account: null, details: null, domain: null, message: 'Thawed project, started
+      0 instances in 0.01 seconds', project: 2, system_error: false, time: ! '2013-12-02
+      12:19:23.518105+00:00', type: info, user: null}
+  model: core.logentry
+  pk: 17
+- fields: {account: 1, details: null, domain: null, message: Thawed project AWS account/AKIAJH3LIPN74P3XO3UQ/Project
+      in VPC, project: null, system_error: false, time: ! '2013-12-02 12:19:23.519484+00:00',
+    type: info, user: null}
+  model: core.logentry
+  pk: 18
+- fields: {account: 1, details: null, domain: null, message: 'Refreshed 1 regions
+      in 1.98 seconds, total 6 / added 0 / deleted 0 instances', project: null, system_error: false,
+    time: ! '2013-12-02 12:19:25.561513+00:00', type: verbose, user: null}
+  model: core.logentry
+  pk: 19
+- fields: {account: 1, details: null, domain: null, message: 'Refreshed 1 regions
+      in 1.93 seconds, total 6 / added 0 / deleted 0 instances', project: null, system_error: false,
+    time: ! '2013-12-02 12:19:30.486013+00:00', type: verbose, user: null}
+  model: core.logentry
+  pk: 20
+- fields: {account: null, details: null, domain: null, message: Freezing project,
+    project: 1, system_error: false, time: ! '2013-12-02 12:19:30.543431+00:00', type: info,
+    user: null}
+  model: core.logentry
+  pk: 21
+- fields: {account: null, details: null, domain: null, message: Freezing instance
+      i-f8e7f483, project: 1, system_error: false, time: ! '2013-12-02 12:19:30.630100+00:00',
+    type: info, user: null}
+  model: core.logentry
+  pk: 22
+- fields: {account: null, details: null, domain: null, message: Freezing instance
+      i-b8099ec3, project: 1, system_error: false, time: ! '2013-12-02 12:19:32.233462+00:00',
+    type: info, user: null}
+  model: core.logentry
+  pk: 23
+- fields: {account: null, details: null, domain: null, message: 'Froze project, terminated
+      0 instances, stopped 2 instances in 2.16 seconds', project: 1, system_error: false,
+    time: ! '2013-12-02 12:19:32.787000+00:00', type: info, user: null}
+  model: core.logentry
+  pk: 24
+- fields: {account: 1, details: null, domain: null, message: Froze project AWS account/AKIAJH3LIPN74P3XO3UQ/Project
+      in public network, project: null, system_error: false, time: ! '2013-12-02 12:19:32.789546+00:00',
+    type: info, user: null}
+  model: core.logentry
+  pk: 25
+- fields: {account: 1, details: null, domain: null, message: 'Refreshed 1 regions
+      in 2.17 seconds, total 6 / added 0 / deleted 0 instances', project: null, system_error: false,
+    time: ! '2013-12-02 12:19:35.014840+00:00', type: verbose, user: null}
+  model: core.logentry
+  pk: 26
+- fields: {account: 1, details: null, domain: null, message: 'Refreshed 1 regions
+      in 0.96 seconds, total 6 / added 0 / deleted 0 instances', project: null, system_error: false,
+    time: ! '2013-12-02 12:21:11.440020+00:00', type: verbose, user: null}
+  model: core.logentry
+  pk: 27
+- fields: {account: null, details: null, domain: null, message: Thawing project, project: 1,
+    system_error: false, time: ! '2013-12-02 12:21:11.498514+00:00', type: info, user: null}
+  model: core.logentry
+  pk: 28
+- fields: {account: null, details: null, domain: null, message: Thawing instance i-f8e7f483,
+    project: 1, system_error: false, time: ! '2013-12-02 12:21:11.533453+00:00', type: info,
+    user: null}
+  model: core.logentry
+  pk: 29
+- fields: {account: null, details: null, domain: null, message: Thawing instance i-b8099ec3,
+    project: 1, system_error: false, time: ! '2013-12-02 12:21:12.789819+00:00', type: info,
+    user: null}
+  model: core.logentry
+  pk: 30
+- fields: {account: null, details: null, domain: null, message: 'Thawed project, started
+      2 instances in 1.98 seconds', project: 1, system_error: false, time: ! '2013-12-02
+      12:21:13.509322+00:00', type: info, user: null}
+  model: core.logentry
+  pk: 31
+- fields: {account: 1, details: null, domain: null, message: Thawed project AWS account/AKIAJH3LIPN74P3XO3UQ/Project
+      in public network, project: null, system_error: false, time: ! '2013-12-02 12:21:13.512474+00:00',
+    type: info, user: null}
+  model: core.logentry
+  pk: 32
+- fields: {account: 1, details: null, domain: null, message: 'Refreshed 1 regions
+      in 1.10 seconds, total 6 / added 0 / deleted 0 instances', project: null, system_error: false,
+    time: ! '2013-12-02 12:21:14.682898+00:00', type: verbose, user: null}
+  model: core.logentry
+  pk: 33
+- fields: {account: 1, details: null, domain: null, message: 'Refreshed 1 regions
+      in 1.49 seconds, total 6 / added 0 / deleted 0 instances', project: null, system_error: false,
+    time: ! '2013-12-02 12:21:50.478740+00:00', type: verbose, user: null}
+  model: core.logentry
+  pk: 34
+- fields: {account: null, details: null, domain: null, message: Freezing project,
+    project: 2, system_error: false, time: ! '2013-12-02 12:21:50.532388+00:00', type: info,
+    user: null}
+  model: core.logentry
+  pk: 35
+- fields: {account: null, details: null, domain: null, message: Freezing instance
+      i-b6099ecd, project: 2, system_error: false, time: ! '2013-12-02 12:21:50.593402+00:00',
+    type: info, user: null}
+  model: core.logentry
+  pk: 36
+- fields: {account: null, details: null, domain: null, message: 'Froze project, terminated
+      0 instances, stopped 1 instances in 1.14 seconds', project: 2, system_error: false,
+    time: ! '2013-12-02 12:21:51.727496+00:00', type: info, user: null}
+  model: core.logentry
+  pk: 37
+- fields: {account: 1, details: null, domain: null, message: Froze project AWS account/AKIAJH3LIPN74P3XO3UQ/Project
+      in VPC, project: null, system_error: false, time: ! '2013-12-02 12:21:51.730173+00:00',
+    type: info, user: null}
+  model: core.logentry
+  pk: 38
+- fields: {account: 1, details: null, domain: null, message: 'Refreshed 1 regions
+      in 1.51 seconds, total 6 / added 0 / deleted 0 instances', project: null, system_error: false,
+    time: ! '2013-12-02 12:21:53.289487+00:00', type: verbose, user: null}
+  model: core.logentry
+  pk: 39
+- fields: {account: 1, details: null, domain: null, message: 'Refreshed 1 regions
+      in 1.76 seconds, total 6 / added 0 / deleted 0 instances', project: null, system_error: false,
+    time: ! '2013-12-02 12:22:22.595020+00:00', type: verbose, user: null}
+  model: core.logentry
+  pk: 40
+- fields: {account: null, details: null, domain: null, message: Thawing project, project: 2,
+    system_error: false, time: ! '2013-12-02 12:22:22.659828+00:00', type: info, user: null}
+  model: core.logentry
+  pk: 41
+- fields: {account: null, details: null, domain: null, message: Thawing instance i-b6099ecd,
+    project: 2, system_error: false, time: ! '2013-12-02 12:22:22.709192+00:00', type: info,
+    user: null}
+  model: core.logentry
+  pk: 42
+- fields: {account: null, details: null, domain: null, message: 'Thawed project, started
+      1 instances in 1.62 seconds', project: 2, system_error: false, time: ! '2013-12-02
+      12:22:24.325200+00:00', type: info, user: null}
+  model: core.logentry
+  pk: 43
+- fields: {account: 1, details: null, domain: null, message: Thawed project AWS account/AKIAJH3LIPN74P3XO3UQ/Project
+      in VPC, project: null, system_error: false, time: ! '2013-12-02 12:22:24.328016+00:00',
+    type: info, user: null}
+  model: core.logentry
+  pk: 44
+- fields: {account: 1, details: null, domain: null, message: 'Refreshed 1 regions
+      in 1.61 seconds, total 6 / added 0 / deleted 0 instances', project: null, system_error: false,
+    time: ! '2013-12-02 12:22:25.974892+00:00', type: verbose, user: null}
+  model: core.logentry
+  pk: 45

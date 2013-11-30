@@ -6,8 +6,8 @@ from django.db import transaction, IntegrityError
 from django.contrib import auth
 from django.utils import timezone
 import re
-import freezr.util as util
-import freezr.filter as filter
+import freezr.common.util as util
+import freezr.common.filter as filter
 
 VALID_INSTANCE_RE = re.compile(r'^i-[0-9a-f]+$')
 

@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 import boto.ec2
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
-import freezr.util as util
+import freezr.common.util as util
 
 TERMINAL_STATES = ('shutting-down', 'terminated')
 DRY_RUN = False # really only for debugging

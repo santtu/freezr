@@ -1,11 +1,11 @@
 from __future__ import absolute_import
-from freezr.celery import app
-from freezr.models import Account, Project, Instance
+from .celery import app
+from . import aws
+from freezr.core.models import Account, Project, Instance
 from django.utils import timezone
 from datetime import timedelta
 from celery.decorators import periodic_task
 import logging
-import freezr.aws
 from celery import Celery, group, chain
 from celery.result import GroupResult
 from celery.exceptions import Retry
@@ -13,7 +13,7 @@ from functools import wraps
 from django.db.utils import OperationalError
 from decorator import decorator
 
-log = logging.getLogger('freezr.tasks')
+log = logging.getLogger('freezr.backend.tasks')
 # shutting-down is a transition, but from our point of view the
 # instances is already gone when it starts that transition
 STABLE_INSTANCE_STATES = ('running', 'stopped',
@@ -130,7 +130,7 @@ def refresh_account(self, pk, regions=None,
 
     # Ah well, probably should get a database transaction or something
     # like that here.
-    account.refresh(regions=regions, aws=freezr.aws.AwsInterface(account))
+    account.refresh(regions=regions, aws=aws.AwsInterface(account))
 
     # See if any of the instances ended up in a "transitioning" state,
     # fire separate update tasks for them.
@@ -156,7 +156,7 @@ def freeze_project(self, pk):
     if not project.account.active or project.state != 'freezing':
         return
 
-    project.freeze(aws=freezr.aws.AwsInterface(project.account))
+    project.freeze(aws=aws.AwsInterface(project.account))
 
 @app.task(bind=True)
 @retry
@@ -171,7 +171,7 @@ def thaw_project(self, pk):
     if not project.account.active or project.state != 'thawing':
         return
 
-    project.thaw(aws=freezr.aws.AwsInterface(project.account))
+    project.thaw(aws=aws.AwsInterface(project.account))
 
 # Note: We don't have project.account.active check on instance checks,
 # since refresh_instance cannot be directly triggered from outside, it
@@ -199,7 +199,7 @@ def refresh_instance(self, pk):
              instance, instance.state)
 
     prev_state = instance.state
-    instance.refresh(aws=freezr.aws.AwsInterface(instance.account))
+    instance.refresh(aws=aws.AwsInterface(instance.account))
 
     # we want to use the old instance object if it is still valid
     if get():

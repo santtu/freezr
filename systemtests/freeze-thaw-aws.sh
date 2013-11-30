@@ -31,7 +31,9 @@ function logname {
 }
 
 function pidof {
-    if [[ ! "$1" =~ ^[0-9]+$ ]]; then
+    if [[ -z "$1" ]]; then
+	echo -n ''
+    elif [[ ! "$1" =~ ^[0-9]+$ ]]; then
 	pgrep -f "$1" | tr '\n' ' '
     else
 	echo -n "$1 "
@@ -139,7 +141,7 @@ else
     echo -n "Starting celeryd ... "
     rm -f celeryd.pid
     $manage celeryd --concurrency 1 -B -l debug \
-	--pidfile celeryd.pid >>$(logname celeryd) 2>&1 &
+	--pidfile $cur_dir/celeryd.pid >>$(logname celeryd) 2>&1 &
     sleep 5; check_add "manage.py celeryd" "$(cat celeryd.pid)"
     echo "done"
 
