@@ -17,14 +17,20 @@ fi
 rm -f logs/latest
 ln -s $logdir logs/latest
 
-./deploy stop
-./deploy
-
-if ./freeze-thaw-aws.sh "$@" 2>&1 | tee ${LOG_PREFIX}integration-test${LOG_SUFFIX}.log; then
-    retval=0
-else
-    retval=1
+if [ -z "$USE_EXISTING_FREEZR" ]; then
+    ./deploy stop
+    ./deploy
 fi
 
-./deploy stop
+./freeze-thaw-aws.sh "$@" 2>&1 | tee ${LOG_PREFIX}integration-test${LOG_SUFFIX}.log
+retval=${PIPESTATUS[0]}
+
+if [[ -n "$USE_EXISTING_FREEZR" || \
+    ( $retval -ne 0 && -n "$KEEP_FAILED_FREEZR" ) ]]; then
+    echo "Failure, but not destroying stack"
+else
+    echo "Destroying stack"
+    ./deploy stop
+fi
+
 exit $retval

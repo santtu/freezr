@@ -52,3 +52,23 @@ If you want to run individual test sets directly, do::
 
   $ cd tests
   $ nosetests -x -v freeze_thaw_aws_test/...py
+
+`run-integration-tests.sh` and `freeze-thaw-aws.sh` scripts will check
+`USE_EXISTING_FREEZR` and `KEEP_FAILED_FREEZR` environment variables,
+and if they are non-empty will either not deploy a new freezr test
+environment or will not deprovision one in case of failure. For
+example, if you want to repeat integration test until something fails,
+do::
+
+  $ export KEEP_FAILED_FREEZR=1
+  $ while ./run-integration-tests.sh; do; done
+
+and when you want to re-test using the same environment, do:
+
+  $ export USE_EXISTING_FREEZR=1 SKIP_DESTRUCTIVE_TESTS=1
+  $ while ./run-integration-tests.sh; do; done
+
+**Note:** Some of the integration tests are destructive -- **you
+  cannot** run the whole suite without a full cloudformation stack
+  redeployment after running them. If you want to run integration
+  tests repeatedly you **must** also set `SKIP_DESTRUCTIVE_TESTS`.
