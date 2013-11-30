@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 from setuptools import setup
+import os
+
+with open('requirements.txt') as f:
+    required = f.read().splitlines()
 
 setup(name='freezr',
       version='0.1.0',
@@ -9,4 +13,6 @@ setup(name='freezr',
       author_email='santtu@iki.fi',
       license='GPLv3',
       packages=['freezr'],
-      zip_safe=False)
+      zip_safe=False,
+      install_requires=required,
+      )
