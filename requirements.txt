@@ -25,3 +25,4 @@ readline
 redis
 requests
 wsgiref
+django-static-precompiler

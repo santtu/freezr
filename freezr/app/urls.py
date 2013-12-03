@@ -19,6 +19,10 @@ if 'freezr.api' in settings.INSTALLED_APPS:
     import freezr.api.urls
     urlpatterns += freezr.api.urls.urlpatterns
 
+if 'freezr.ui' in settings.INSTALLED_APPS:
+    import freezr.ui.urls
+    urlpatterns += freezr.ui.urls.urlpatterns
+
 def handler500(request):
     log.exception('Internal server error on %s %s',
                   request.method, request.get_full_path())

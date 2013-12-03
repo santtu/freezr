@@ -1,0 +1,17 @@
+#
+# freezr.coffee
+
+url = (p) -> freezr_api_root + p
+
+$ ->
+  $('#output').text "Hello, world!"
+  $.ajax url('/project/'),
+    accept: "application/json"
+    success: (data, status, xhr) ->
+      $('#output').empty().append t = $('<table class="table"/>')
+      t.append $('<thead><th>State</th><th>Project name</th></thead>')
+      t.append tb = $('<tbody/>')
+      for p in data
+        tb.append (r = $('<tr/>'))
+        r.append $('<td/>').text(p.state)
+        r.append $('<td/>').text(p.name)

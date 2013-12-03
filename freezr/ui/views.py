@@ -1,3 +1,6 @@
 from django.shortcuts import render
+from django.conf import settings
 
-# Create your views here.
+def index(request):
+    context = { 'api_root': settings.FREEZR_API_ROOT }
+    return render(request, 'index.html', context)

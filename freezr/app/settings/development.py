@@ -30,8 +30,14 @@ INSTALLED_APPS = (
     'freezr.ui',
     'freezr.core',
     'freezr.backend',
+    'static_precompiler',
     )
 
+STATICFILE_FINDERS = (
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+    'static_precompiler.finders.StaticPrecompilerFinder',
+    )
 
 MIDDLEWARE_CLASSES = (
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -110,5 +116,17 @@ if not TESTING:
                 },
             }
         }
+
+#STATIC_ROOT = os.path.join(BASE_DIR, "static")
+#STATIC_ROOT = "freezr/static"
+
+STATIC_PRECOMPILER_ROOT = "freezr/static"
+
+STATICFILES_DIRS = (
+    "freezr/static",
+    '/var/www/static/',
+)
+
+FREEZR_API_ROOT = "/api"
 
 import freezr.backend.celery
