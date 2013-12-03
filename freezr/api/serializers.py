@@ -36,16 +36,21 @@ class LogEntrySerializer(serializers.ModelSerializer):
         model = LogEntry
         fields = ('type', 'time', 'message', 'details', 'user_id', 'user')
 
-class DomainSerializer(serializers.HyperlinkedModelSerializer):
+#class DomainSerializer(serializers.HyperlinkedModelSerializer):
+class DomainSerializer(serializers.ModelSerializer):
     log_entries = LogEntrySerializer(many=True, read_only=True)
 
     class Meta:
         model = Domain
         fields = ('id', 'name', 'description', 'active', 'accounts',
-                  'log_entries', 'domain', 'url')
+                  'log_entries', 'domain',
+                  #'url',
+                  )
+
 
 class AccountSerializer(util.Logger, ImmutableMixin,
-                        serializers.HyperlinkedModelSerializer):
+                        serializers.ModelSerializer):
+#                        serializers.HyperlinkedModelSerializer):
     regions = serializers.Field()
     updated = serializers.Field() # no user-initiated updates on this field
     log_entries = LogEntrySerializer(many=True, read_only=True)
@@ -101,11 +106,14 @@ class AccountSerializer(util.Logger, ImmutableMixin,
         model = Account
         fields = ('id', 'domain', 'name', 'access_key', 'secret_key',
                   'active', 'projects', 'regions',
-                  'instances', 'updated', 'log_entries', 'url')
+                  'instances', 'updated', 'log_entries',
+                  #'url',
+                  )
         immutable_fields = ('domain',)
 
 class ProjectSerializer(util.Logger, ImmutableMixin,
-                        serializers.HyperlinkedModelSerializer):
+#                        serializers.HyperlinkedModelSerializer):
+                        serializers.ModelSerializer):
     picked_instances = serializers.HyperlinkedRelatedField(
         many=True, view_name='instance-detail', read_only=True)
 
@@ -212,16 +220,21 @@ class ProjectSerializer(util.Logger, ImmutableMixin,
                   'pick_filter', 'save_filter', 'terminate_filter',
                   'picked_instances', 'saved_instances',
                   'skipped_instances', 'terminated_instances',
-                  'log_entries', 'url')
+                  'log_entries'
+                  #, 'url')
+                  )
         immutable_fields = ('account',)
 
-class InstanceSerializer(serializers.HyperlinkedModelSerializer):
+#class InstanceSerializer(serializers.HyperlinkedModelSerializer):
+class InstanceSerializer(serializers.ModelSerializer):
     tags = serializers.Field()
 
     class Meta:
         model = Instance
         fields = ('account', 'instance_id', 'region', 'vpc_id',
-                  'store', 'state', 'tags', 'url')
+                  'store', 'state', 'tags',
+                  #'url',
+                  )
 
     def transform_tags(self, obj, value):
         return {tag.key: tag.value for tag in obj.tags.all()}

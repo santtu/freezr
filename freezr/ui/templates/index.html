@@ -45,15 +45,55 @@
         </div>
         <div class="collapse navbar-collapse">
           <ul class="nav navbar-nav">
-            <li class="active"><a href="#">Home</a></li>
-            <li><a href="#about">Projects</a></li>
+            <li><a href="#">Home</a></li>
+            <li class="active"><a  href="#about">Projects</a></li>
             <li><a href="#contact">Account</a></li>
           </ul>
         </div><!--/.nav-collapse -->
       </div>
     </div>
 
-    <div class="container show-grid">
+    {% verbatim %}
+    <script type="text/x-handlebars" id="index">
+      <h2>Domains</h2>
+      <ol id="domains-list">
+	{{#each domains}}
+	<li>{{id}} | {{name}} – {{accounts.length}}</li>
+	{{/each}}
+      </ol>
+
+      <h2>Accounts</h2>
+      <ol id="accounts-list">
+	{{#each accounts}}
+	<li>{{id}} | {{name}} | {{state}} – {{projects.length}} </li>
+	{{/each}}
+      </ol>
+
+      <h2>Projects</h2>
+      <ol id="projects-list">
+	{{#each projects}}
+	<li>{{id}} | {{name}} | {{state}} ({{timeSince
+	stateChanged}}) [{{timeSince account.updated}}]</li>
+	{{/each}}
+      </ol>
+
+      <h2>Instances</h2>
+      <ol id="instances-list">
+	{{#each instances}}
+	<li>{{id}} | {{instanceId}} | {{state}}</li>
+	{{/each}}
+      </ol>
+
+    </script>
+    <script type="text/x-handlebars">
+      Outlet here:
+
+      {{outlet}}
+    </script>
+    {% endverbatim %}
+
+    <div class="container">
+
 
       <div id="project-edit-view">
 	<p>This should be hidden.</p>
@@ -208,8 +248,13 @@
     ================================================== -->
     <!-- Placed at the end of the document so the pages load faster -->
     <script>freezr_api_root = "{{ api_root }}";</script>
-    <script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
-    <script src="{% static "freezr_ui/js/bootstrap.min.js" %}"></script>
+    <script src="{% static "freezr_ui/js/jquery-1.10.2.js" %}"></script>
+    <script src="{% static "freezr_ui/js/handlebars-1.1.2.js" %}"></script>
+    <script src="{% static "freezr_ui/js/ember-1.2.0.js" %}"></script>
+    <!-- todo: remember to track updates, this is beta.3 -->
+    <script src="{% static "freezr_ui/js/ember-data.js" %}"></script>
+    <!-- <script src="{% static "freezr_ui/js/ember-data-django-rest-adapter.js" %}"></script> -->
+    <script src="{% static "freezr_ui/js/bootstrap.js" %}"></script>
     <script src="{{ STATIC_URL }}{% coffeescript "freezr_ui/coffeescript/freezr.coffee" %}"></script>
   </body>
 </html>
