@@ -1,5 +1,6 @@
-{% load coffeescript %}
 {% load staticfiles %}
+{% load coffeescript %}
+{% load less %}
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -16,7 +17,8 @@
     <link href="{% static "freezr_ui/css/bootstrap.css" %}" rel="stylesheet">
 
     <!-- Custom styles for this template -->
-    <link href="{% static "freezr_ui/css/freezr.css" %}" rel="stylesheet">
+    <!-- <link href="{% static "freezr_ui/css/freezr.css" %}" rel="stylesheet"> -->
+    <link href="{{ STATIC_URL }}{% less "freezr_ui/less/freezr.less" %}" rel="stylesheet">
 
     <!-- Just for debugging purposes. Don't actually copy this line! -->
     <!--[if lt IE 9]><script src="../../docs-assets/js/ie8-responsive-file-warning.js"></script><![endif]-->
@@ -51,17 +53,153 @@
       </div>
     </div>
 
-    <div class="container">
+    <div class="container show-grid">
 
-      <div class="starter-template">
-        <h1>Bootstrap starter template</h1>
-        <p class="lead">Use this document as a way to quickly start any new project.<br> All you get is this text and a mostly barebones HTML document.</p>
+      <div id="project-edit-view">
+	<p>This should be hidden.</p>
       </div>
 
-      <div id="content">
-	<div id="output">
+      <div id="project-list-view">
+	<h1>Project status</h1>
+
+	<div class="project-list-header">
+	  <div class="row">
+	    <div class="col-sm-10"></div>
+	    <div class="col-sm-2 project-action-expand text-right">
+	      <a href="#" class="glyphicon glyphicon-chevron-left"></a>
+	      <a href="#" class="glyphicon glyphicon-chevron-right" style="display: none;"></a></div>
+	  </div>
 	</div>
+
+	<div class="row project-list">
+	  <div class="col-sm-10 project-info project-shrinker">
+	    <div class="row">
+	      <div class="col-xs-1 project-info-expand"><a class="glyphicon glyphicon-chevron-down" href="#"></a><a class="glyphicon glyphicon-chevron-up" style="display: none;" href="#"></a></div>
+	      <div class="col-xs-11 project-info-main">
+		<div class="project-info-short row text-primary">
+		  <p class="lead">xpdn main project info short</p>
+		</div>
+		<div class="project-info-long row text-muted" style="display: none;">
+		  <div class="col-md-9 project-info-description no-left-gutter">
+		    <p>long project description with potentially lots of text</p>
+		    <p>and also in multiple paragraphs</p>
+		  </div>
+		  <div class="col-md-3 project-info-details no-left-gutter-row">
+		    <div class="row">
+		      <div class="col-xs-8">Instances:</div>
+		      <div class="col-xs-4">8</div>
+		    </div>
+		    <div class="row">
+		      <div class="col-xs-8">Pick filter:</div>
+		      <div class="col-xs-4"><tt>false</tt></div>
+		    </div>
+		    <div class="row">
+		      <div class="col-xs-8">Regions:</div>
+		      <div class="col-xs-4">
+			<abbr title="eu-west-1, us-east-1, us-west-1">3</abbr>
+		      </div>
+		    </div>
+		  </div>
+		</div>
+	      </div>
+	    </div>
+	  </div>
+	  <div class="col-sm-2">
+	    <div class="project-status">
+	      <div class="project-action-freeze">
+		<a href="#" class="btn btn-primary project-action-freeze-button col-xs-12"></a>
+	      </div>
+	      <small>for 2 hours, 47 minutes</small>
+	    </div>
+	  </div>
+	  <div class="col-sm-2 project-actions project-expander" style="display: none";>
+	    <button class="btn btn-default col-xs-12">Edit</button><br>
+	    <button class="btn btn-default col-xs-12">Refresh</button>
+	    <button class="btn btn-default col-xs-12">Deactivate</button>
+	  </div>
+	</div>
+
+	<div class="row project-list project-list-last">
+	  <div class="col-sm-10 project-info project-shrinker">
+	    <div class="row">
+	      <div class="col-xs-1 project-info-expand"><a class="glyphicon glyphicon-chevron-down" href="#"></a><a class="glyphicon glyphicon-chevron-up" style="display: none;" href="#"></a></div>
+	      <div class="col-xs-11 project-info-main">
+		<div class="project-info-short row text-primary">
+		  <p class="lead">xpdn main project info short</p>
+		</div>
+		<div class="project-info-long row text-muted" style="display: none;">
+		  <div class="col-md-9 project-info-description no-left-gutter">
+		    <p>long project description with potentially lots of text</p>
+		    <p>and also in multiple paragraphs</p>
+		  </div>
+		  <div class="col-md-3 project-info-details no-left-gutter-row">
+		    <div class="row">
+		      <div class="col-xs-8">Instances:</div>
+		      <div class="col-xs-4">8</div>
+		    </div>
+		    <div class="row">
+		      <div class="col-xs-8">Pick filter:</div>
+		      <div class="col-xs-4"><tt>false</tt></div>
+		    </div>
+		    <div class="row">
+		      <div class="col-xs-8">Regions:</div>
+		      <div class="col-xs-4">
+			<abbr title="eu-west-1, us-east-1, us-west-1">3</abbr>
+		      </div>
+		    </div>
+		  </div>
+		</div>
+	      </div>
+	    </div>
+	  </div>
+	  <div class="col-sm-2 project-status">
+	    <div class="dropdown project-action-thaw">
+	      <a data-toggle="dropdown" href="#" class="btn btn-primary project-action-thaw-button col-xs-12"></a>
+	      <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
+		<li><a href="#">1 hour</a></li>
+		<li><a href="#">4 hours</a></li>
+		<li><a href="#">8 hours</a></li>
+		<li><a href="#">1 day</a></li>
+		<li><a href="#">3 days</a></li>
+		<li><a href="#">1 week</a></li>
+		<li><a href="#">Indefinitely</a></li>
+	      </ul>
+	    </div>
+	    <small>for 5 days, 2 hours</small>
+	  </div>
+	  <div class="col-sm-2 project-actions project-expander" style="display: none";>
+	    <button class="btn btn-default col-xs-12">Edit</button><br>
+	    <button class="btn btn-default col-xs-12">Refresh</button>
+	    <button class="btn btn-default col-xs-12">Deactivate</button>
+	  </div>
+	</div>
+
+	<div class="project-list-footer">
+	  <div class="row project-expander" style="display: none;">
+	    <div class="col-sm-10"></div>
+	    <div class="col-sm-2">
+	      <button class="btn btn-default col-xs-12"><span class="glyphicon glyphicon-plus"></span></button><br>
+	    </div>
+	  </div>
+	  <div class="row">
+	    <div class="col-sm-10"></div>
+	    <div class="col-sm-2 project-action-expand text-right">
+	      <a href="#" class="glyphicon glyphicon-chevron-left"></a>
+	      <a href="#" class="glyphicon glyphicon-chevron-right" style="display: none;"></a></div>
+	  </div>
+	</div>
+
       </div>
+
+      <!-- <div class="starter-template"> -->
+      <!--   <h1>Bootstrap starter template</h1> -->
+      <!--   <p class="lead">Use this document as a way to quickly start any new project.<br> All you get is this text and a mostly barebones HTML document.</p> -->
+      <!-- </div> -->
+
+      <!-- <div id="content"> -->
+      <!-- 	<div id="output"> -->
+      <!-- 	</div> -->
+      <!-- </div> -->
 
     </div><!-- /.container -->
 

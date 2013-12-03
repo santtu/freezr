@@ -1,0 +1,111 @@
+/* freezr.css */
+body {
+  padding-top: 50px;
+}
+
+.starter-template {
+  padding: 40px 15px;
+  text-align: center;
+}
+
+#content {
+  padding: 0px 30px;
+  text-align: left;
+}
+
+#project-edit-view {
+    display: none;
+}
+
+.project-list {
+    padding-top: 5px;
+    padding-bottom: 5px;
+
+    &.project-list-last {
+	border-bottom: 2px solid lightgray;
+    }
+
+    border-top: 2px solid lightgray;
+
+    .no-left-gutter-row > .row > div {
+	padding-left: 0;
+    }
+
+    .no-left-gutter {
+	padding-left: 0px;
+    }
+}
+
+.project-status {
+    .project-action-thaw {
+	&.open {
+	    > a {
+		background: orange;
+
+		&:before {
+		    content: "Thaw for .." !important;
+		}
+	    }
+	}
+
+	> a {
+	    background: lightblue;
+
+	    &:before {
+		content: "Frozen";
+	    }
+
+	    &:hover {
+		&:before {
+		    content: "Thaw";
+		}
+		background: orange;
+	    }
+	}
+    }
+
+    .project-action-freeze {
+	> a {
+	    background: green;
+
+	    &:before {
+		content: "Running";
+	    }
+
+	    &:hover {
+		&:before {
+		    content: "Freeze";
+		}
+		background: orange;
+	    }
+	}
+    }
+}
+
+.project-actions {
+    button {
+	margin-bottom: 5px;
+    }
+}
+
+.project-list-footer {
+    margin-top: 5px;
+}
+
+.rounded-corners (@radius: 5px) {
+  -webkit-border-radius: @radius;
+  -moz-border-radius: @radius;
+  -ms-border-radius: @radius;
+  -o-border-radius: @radius;
+  border-radius: @radius;
+}
+
+.project-info-details {
+    background: #eee;
+    padding: 15px 30px;
+    .rounded-corners(10px);
+}
+
+.project-expander {
+    border-left: 2px dashed lightgray;
+}
