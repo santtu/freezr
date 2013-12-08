@@ -31,30 +31,184 @@
   </head>
 
   <body>
-
-    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
-      <div class="container">
-        <div class="navbar-header">
-          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
-          <a class="navbar-brand" href="#">freezr</a>
-        </div>
-        <div class="collapse navbar-collapse">
-          <ul class="nav navbar-nav">
-            <li><a href="#">Home</a></li>
-            <li class="active"><a  href="#about">Projects</a></li>
-            <li><a href="#contact">Account</a></li>
-          </ul>
-        </div><!--/.nav-collapse -->
-      </div>
-    </div>
-
     {% verbatim %}
+    <script type="text/x-handlebars">
+      <section id="freezrapp">
+	<div class="container">
+	  <header>
+	    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+	      <div class="container">
+		<div class="navbar-header">
+		  <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+		    <span class="sr-only">Toggle navigation</span>
+		    <span class="icon-bar"></span>
+		    <span class="icon-bar"></span>
+		    <span class="icon-bar"></span>
+		  </button>
+		  <a class="navbar-brand" href="#">freezr</a>
+		</div>
+		<div class="collapse navbar-collapse">
+		  <ul class="nav navbar-nav">
+		    <li>{{#link-to 'home'}}Home{{/link-to}}</a></li>
+		    <li class="active">{{#link-to 'projects'}}Projects{{/link-to}}</li>
+		    <li>{{#link-to 'accounts'}}Accounts{{/link-to}}</li>
+		  </ul>
+		</div><!--/.nav-collapse -->
+	      </div>
+	    </div>
+	  </header>
+
+	  <section id="main">
+	    {{outlet}}
+	  </section>
+
+	  <!-- <footer> -->
+	  <!--   Footer here. -->
+	  <!-- </footer> -->
+	</div>
+    </script>
+
+    <script type="text/x-handlebars" id="project">
+      single project view {{id}}
+    </script>
+
+    <script type="text/x-handlebars" id="projects-project">
+      <div class="row project-list">
+	<div class="col-sm-10 project-info project-shrinker">
+	  <div class="row">
+	    <div class="col-xs-1 project-info-expand">
+	      {{#if view.expanded}}
+	      <a class="glyphicon glyphicon-chevron-up" href="#" {{action 'collapse' target="view"}}></a>
+	      {{else}}
+	      <a class="glyphicon glyphicon-chevron-down" href="#" {{action 'expand' target="view"}}></a>
+	    {{/if}}
+	    </div>
+	    <div class="col-xs-11 project-info-main">
+	      <div class="project-info-short row text-primary">
+	    	<p class="lead">{{#link-to 'project' this}}{{name}}{{/link-to}}</p>
+	      </div>
+	      <div {{bind-attr class=":project-info-long :row :text-muted view.expanded::hidden"}}>
+	    	<div class="col-md-9 project-info-description no-left-gutter">
+	    	  <p>{{description}}</p>
+	    	</div>
+	    	<div class="col-md-3 project-info-details no-left-gutter-row">
+	    	  <div class="row">
+	    	    <div class="col-xs-8">Instances:</div>
+	    	    <div class="col-xs-4">{{pickedInstances.length}}</div>
+	    	  </div>
+	    	  <div class="row">
+	    	    <div class="col-xs-8">Pick filter:</div>
+	    	    <div class="col-xs-4"><tt>{{pickFilter}}</tt></div>
+	    	  </div>
+	    	  <div class="row">
+	    	    <div class="col-xs-8">Save filter:</div>
+	    	    <div class="col-xs-4"><tt>{{saveFilter}}</tt></div>
+	    	  </div>
+	    	  <div class="row">
+	    	    <div class="col-xs-8">Terminate filter:</div>
+	    	    <div class="col-xs-4"><tt>{{terminateFilter}}</tt></div>
+	    	  </div>
+	    	  <div class="row">
+	    	    <div class="col-xs-8">Regions:</div>
+	    	    <div class="col-xs-4">
+	    	      <abbr title="eu-west-1, us-east-1, us-west-1">{{regions.length}}</abbr>
+	    	    </div>
+	    	  </div>
+	    	</div>
+	      </div>
+	    </div>
+	  </div>
+	</div>
+	<div class="col-sm-2">
+	  <div class="project-status">
+	    {{#if canFreeze}}
+	    <div class="project-action-freeze">
+	      <a href="#" class="btn btn-primary project-action-freeze-button col-xs-12" {{action 'freeze' this}}></a>
+	    </div>
+	    {{/if}}
+	    {{#if canThaw}}
+	    <div class="dropdown project-action-thaw">
+	      <a data-toggle="dropdown" href="#" class="btn btn-primary project-action-thaw-button col-xs-12"></a>
+	      <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
+		<li><a href="#" {{action 'thaw' this 60}}>1 hour</a></li>
+		<li><a href="#" {{action 'thaw' this 240}}>4 hours</a></li>
+		<li><a href="#" {{action 'thaw' this 480}}>8 hours</a></li>
+		<li><a href="#" {{action 'thaw' this 1440}}>1 day</a></li>
+		<li><a href="#" {{action 'thaw' this 4320}}>3 days</a></li>
+		<li><a href="#" {{action 'thaw' this 10080}}>1 week</a></li>
+		<li><a href="#" {{action 'thaw' this -1}}>Indefinitely</a></li>
+	      </ul>
+	    </div>
+	    {{/if}}
+	    {{#if cannotChange}}
+	    cannot change
+	    {{/if}}
+	    <small>for {{timeSince stateChanged}}</small>
+	  </div>
+	</div>
+	<div class="col-sm-2 project-actions project-expander" style="display: none";>
+	  <button class="btn btn-default col-xs-12">Edit</button><br>
+	  <button class="btn btn-default col-xs-12">Refresh</button>
+	  <button class="btn btn-default col-xs-12">Deactivate</button>
+	</div>
+      </div>
+
+    </script>
+
+    <script type="text/x-handlebars" id="accounts">
+      accounts resource
+    </script>
+
     <script type="text/x-handlebars" id="index">
+      index resource
+    </script>
+
+    <script type="text/x-handlebars" id="home">
+      <h1>Welcome!</h1>
+
+      <p class="lead">You'll find more information of ..</p>
+
+      <ul>
+	<li>{{#link-to 'projects'}}{{projects.length}} projects{{/link-to}}</li>
+	<li>{{#link-to 'accounts'}}{{accounts.length}} accounts{{/link-to}}</li>
+	<li>{{instances.length}} instances</li>
+	<li>{{domains.length}} domains</li>
+      </ul>
+    </script>
+
+    <script type="text/x-handlebars" id="projects/index">
+      <div id="project-list-view">
+	<div class="project-list-header">
+	  <div class="row">
+	    <div class="col-sm-10"></div>
+	    <div class="col-sm-2 project-action-expand text-right">
+	      <a href="#" class="glyphicon glyphicon-chevron-left"></a>
+	      <a href="#" class="glyphicon glyphicon-chevron-right" style="display: none;"></a></div>
+	  </div>
+	</div>
+
+	{{#each projects}}
+	{{view "App.ProjectsProjectView"}}
+	{{/each}}
+
+	<div class="project-list-footer">
+	  <div class="row project-expander" style="display: none;">
+	    <div class="col-sm-10"></div>
+	    <div class="col-sm-2">
+	      <button class="btn btn-default col-xs-12"><span class="glyphicon glyphicon-plus"></span></button><br>
+	    </div>
+	  </div>
+	  <div class="row">
+	    <div class="col-sm-10"></div>
+	    <div class="col-sm-2 project-action-expand text-right">
+	      <a href="#" class="glyphicon glyphicon-chevron-left"></a>
+	      <a href="#" class="glyphicon glyphicon-chevron-right" style="display: none;"></a></div>
+	  </div>
+	</div>
+      </div>
+    </script>
+
+    <script type="text/x-handlebars" id="index2">
       <h2>Domains</h2>
       <ol id="domains-list">
 	{{#each domains}}
@@ -73,7 +227,7 @@
       <ol id="projects-list">
 	{{#each projects}}
 	<li>{{id}} | {{name}} | {{state}} ({{timeSince
-	stateChanged}}) [{{timeSince account.updated}}]</li>
+	  stateChanged}}) [{{timeSince account.updated}}]</li>
 	{{/each}}
       </ol>
 
@@ -83,166 +237,9 @@
 	<li>{{id}} | {{instanceId}} | {{state}}</li>
 	{{/each}}
       </ol>
-
     </script>
-    <script type="text/x-handlebars">
-      Outlet here:
 
-      {{outlet}}
-    </script>
     {% endverbatim %}
-
-    <div class="container">
-
-
-      <div id="project-edit-view">
-	<p>This should be hidden.</p>
-      </div>
-
-      <div id="project-list-view">
-	<h1>Project status</h1>
-
-	<div class="project-list-header">
-	  <div class="row">
-	    <div class="col-sm-10"></div>
-	    <div class="col-sm-2 project-action-expand text-right">
-	      <a href="#" class="glyphicon glyphicon-chevron-left"></a>
-	      <a href="#" class="glyphicon glyphicon-chevron-right" style="display: none;"></a></div>
-	  </div>
-	</div>
-
-	<div class="row project-list">
-	  <div class="col-sm-10 project-info project-shrinker">
-	    <div class="row">
-	      <div class="col-xs-1 project-info-expand"><a class="glyphicon glyphicon-chevron-down" href="#"></a><a class="glyphicon glyphicon-chevron-up" style="display: none;" href="#"></a></div>
-	      <div class="col-xs-11 project-info-main">
-		<div class="project-info-short row text-primary">
-		  <p class="lead">xpdn main project info short</p>
-		</div>
-		<div class="project-info-long row text-muted" style="display: none;">
-		  <div class="col-md-9 project-info-description no-left-gutter">
-		    <p>long project description with potentially lots of text</p>
-		    <p>and also in multiple paragraphs</p>
-		  </div>
-		  <div class="col-md-3 project-info-details no-left-gutter-row">
-		    <div class="row">
-		      <div class="col-xs-8">Instances:</div>
-		      <div class="col-xs-4">8</div>
-		    </div>
-		    <div class="row">
-		      <div class="col-xs-8">Pick filter:</div>
-		      <div class="col-xs-4"><tt>false</tt></div>
-		    </div>
-		    <div class="row">
-		      <div class="col-xs-8">Regions:</div>
-		      <div class="col-xs-4">
-			<abbr title="eu-west-1, us-east-1, us-west-1">3</abbr>
-		      </div>
-		    </div>
-		  </div>
-		</div>
-	      </div>
-	    </div>
-	  </div>
-	  <div class="col-sm-2">
-	    <div class="project-status">
-	      <div class="project-action-freeze">
-		<a href="#" class="btn btn-primary project-action-freeze-button col-xs-12"></a>
-	      </div>
-	      <small>for 2 hours, 47 minutes</small>
-	    </div>
-	  </div>
-	  <div class="col-sm-2 project-actions project-expander" style="display: none";>
-	    <button class="btn btn-default col-xs-12">Edit</button><br>
-	    <button class="btn btn-default col-xs-12">Refresh</button>
-	    <button class="btn btn-default col-xs-12">Deactivate</button>
-	  </div>
-	</div>
-
-	<div class="row project-list project-list-last">
-	  <div class="col-sm-10 project-info project-shrinker">
-	    <div class="row">
-	      <div class="col-xs-1 project-info-expand"><a class="glyphicon glyphicon-chevron-down" href="#"></a><a class="glyphicon glyphicon-chevron-up" style="display: none;" href="#"></a></div>
-	      <div class="col-xs-11 project-info-main">
-		<div class="project-info-short row text-primary">
-		  <p class="lead">xpdn main project info short</p>
-		</div>
-		<div class="project-info-long row text-muted" style="display: none;">
-		  <div class="col-md-9 project-info-description no-left-gutter">
-		    <p>long project description with potentially lots of text</p>
-		    <p>and also in multiple paragraphs</p>
-		  </div>
-		  <div class="col-md-3 project-info-details no-left-gutter-row">
-		    <div class="row">
-		      <div class="col-xs-8">Instances:</div>
-		      <div class="col-xs-4">8</div>
-		    </div>
-		    <div class="row">
-		      <div class="col-xs-8">Pick filter:</div>
-		      <div class="col-xs-4"><tt>false</tt></div>
-		    </div>
-		    <div class="row">
-		      <div class="col-xs-8">Regions:</div>
-		      <div class="col-xs-4">
-			<abbr title="eu-west-1, us-east-1, us-west-1">3</abbr>
-		      </div>
-		    </div>
-		  </div>
-		</div>
-	      </div>
-	    </div>
-	  </div>
-	  <div class="col-sm-2 project-status">
-	    <div class="dropdown project-action-thaw">
-	      <a data-toggle="dropdown" href="#" class="btn btn-primary project-action-thaw-button col-xs-12"></a>
-	      <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
-		<li><a href="#">1 hour</a></li>
-		<li><a href="#">4 hours</a></li>
-		<li><a href="#">8 hours</a></li>
-		<li><a href="#">1 day</a></li>
-		<li><a href="#">3 days</a></li>
-		<li><a href="#">1 week</a></li>
-		<li><a href="#">Indefinitely</a></li>
-	      </ul>
-	    </div>
-	    <small>for 5 days, 2 hours</small>
-	  </div>
-	  <div class="col-sm-2 project-actions project-expander" style="display: none";>
-	    <button class="btn btn-default col-xs-12">Edit</button><br>
-	    <button class="btn btn-default col-xs-12">Refresh</button>
-	    <button class="btn btn-default col-xs-12">Deactivate</button>
-	  </div>
-	</div>
-
-	<div class="project-list-footer">
-	  <div class="row project-expander" style="display: none;">
-	    <div class="col-sm-10"></div>
-	    <div class="col-sm-2">
-	      <button class="btn btn-default col-xs-12"><span class="glyphicon glyphicon-plus"></span></button><br>
-	    </div>
-	  </div>
-	  <div class="row">
-	    <div class="col-sm-10"></div>
-	    <div class="col-sm-2 project-action-expand text-right">
-	      <a href="#" class="glyphicon glyphicon-chevron-left"></a>
-	      <a href="#" class="glyphicon glyphicon-chevron-right" style="display: none;"></a></div>
-	  </div>
-	</div>
-
-      </div>
-
-      <!-- <div class="starter-template"> -->
-      <!--   <h1>Bootstrap starter template</h1> -->
-      <!--   <p class="lead">Use this document as a way to quickly start any new project.<br> All you get is this text and a mostly barebones HTML document.</p> -->
-      <!-- </div> -->
-
-      <!-- <div id="content"> -->
-      <!-- 	<div id="output"> -->
-      <!-- 	</div> -->
-      <!-- </div> -->
-
-    </div><!-- /.container -->
-
 
     <!-- Bootstrap core JavaScript
     ================================================== -->

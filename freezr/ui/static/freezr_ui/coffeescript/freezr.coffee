@@ -1,5 +1,7 @@
 # -*- tab-width: 2 -*-
 
+# For REST check http://eviltrout.com/2013/03/23/ember-without-data.html
+
 # JSONTransforms.array from http://stackoverflow.com/a/13884238/779129
 Transforms = {}
 Transforms.array = DS.Transform.extend
@@ -88,7 +90,8 @@ Handlebars.registerHelper 'timeSince', (property, options) ->
 
 url = (p) -> freezr_api_root + p
 
-window.App = App = Ember.Application.create()
+window.App = App = Ember.Application.create
+  LOG_TRANSITIONS: true
 
 App.register 'transform:array', Transforms.array
 App.register 'transform:map', Transforms.map
@@ -168,6 +171,13 @@ App.Project = DS.Model.extend
   terminatedInstances: DS.hasMany('instance')
   skippedInstances: DS.hasMany('instance')
   stateChanged: DS.attr('date')
+  regions: DS.attr('array')
+  isRunning: (() -> (@get 'state') == 'running').property('state')
+  isFrozen: (() -> (@get 'state') == 'frozen').property('state')
+  canChange: (() -> (@get 'state') in ['running', 'frozen', 'error']).property('state')
+  canFreeze: (() -> (@get 'isRunning')).property('state')
+  canThaw: (() -> (@get 'isFrozen')).property('state')
+  cannotChange: (() -> not (@get 'canChange')).property('state')
 
 App.Instance = DS.Model.extend
   instanceId: DS.attr('string')
@@ -220,6 +230,7 @@ App.Project.FIXTURES = [
     terminatedInstances: [1]
     skippedInstances: []
     stateChanged: '2013-12-05T20:47:20+02:00'
+    regions: ['us-east-1', 'us-west-1']
   },
   {
     id: 2
@@ -236,6 +247,7 @@ App.Project.FIXTURES = [
     terminatedInstances: []
     skippedInstances: []
     stateChanged: '2013-11-01T00:00:00+02:00'
+    regions: ['us-east-1', 'us-west-1']
   }]
 
 App.Instance.FIXTURES = [
@@ -271,9 +283,50 @@ App.Instance.FIXTURES = [
   }]
 
 App.Router.map () ->
-   # foo
+  @resource 'home', { path: "/home" }
+  @resource 'projects', { path: "/projects" }, () ->
+    @resource 'project', { path: '/:project_id' }, () ->
+      @route 'edit'
+    @route 'new', { path: "/new" }
+  @resource 'accounts', { path: "/accounts" }, () ->
+    @resource 'account', { path: '/:account_id' }, () ->
+      @route 'edit'
+    @route 'new', { path: "/new" }
+
+App.ProjectsController = Ember.Controller.extend {}
+
+App.ProjectController = Ember.ObjectController.extend {}
+
+  # isExpanded: false
+  # actions:
+  #   expand: () -> this.set 'isExpanded', true
+  #   collapse: () -> this.set 'isExpanded', false
+
+App.ProjectsIndexController = Ember.ObjectController.extend
+  actions:
+    thaw: () ->
+      console?.log "thaw", arguments
+    freeze: () ->
+      console?.log "freeze", arguments
+
+App.ProjectsProjectView = Ember.View.extend
+  templateName: 'projects-project'
+  expanded: false
+  actions:
+    expand: () -> this.set 'expanded', true
+    collapse: () -> this.set 'expanded', false
+
+  didInsertElement: () ->
+    console?.log "didInsertElement"
+    @$('.dropdown-toggle').dropdown()
+
+App.ProjectsProjectController = Ember.ObjectController.extend
+  isRunning: true
 
 App.IndexRoute = Ember.Route.extend
+  redirect: () -> @transitionTo 'projects'
+
+allRoute = Ember.Route.extend
   model: () ->
     {
       domains: this.store.find('domain')
@@ -281,6 +334,9 @@ App.IndexRoute = Ember.Route.extend
       projects: this.store.find('project')
       instances: this.store.find('instance')
     }
+
+App.HomeRoute = allRoute.extend {}
+App.ProjectsIndexRoute = allRoute.extend {}
 
 $ ->
   $(".project-list .project-info").each (index, el) ->
@@ -301,4 +357,4 @@ $ ->
     $('.project-expander').toggle(actionColumnVisible)
     $('.project-action-expand a').toggle()
 
-  $('.dropdown-toggle').dropdown()
+  # $('.dropdown-toggle').dropdown()
