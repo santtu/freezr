@@ -12,5 +12,5 @@ class ResetEnvironment(util.Mixin, unittest.TestCase):
 
         for d in r.data:
             self.log.debug('Deleting domain %s', d['id'])
-            r2 = self.client.delete(d['url'])
+            r2 = self.client.delete('/domain/%s/' % (d['id'],))
             self.assertCode(r2, 204)

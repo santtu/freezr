@@ -73,9 +73,7 @@ class ProjectViewSet(BaseViewSet):
     @action()
     @util.log_error(Project)
     def freeze(self, request, pk):
-        # self.log.debug("freeze: self=%r request=%r pk=%r",
-        #                self, request, pk);
-        project = Project.objects.get(pk=pk)
+        project = self.get_object()
 
         # self.log.debug("freeze: project.state=%r project.account=%d "
         #                "project.account.active=%r",
@@ -111,16 +109,16 @@ class ProjectViewSet(BaseViewSet):
 
         # self.log.debug("freeze: async=%r", async)
 
-        return Response({'message': 'Project freezing started',
-                         'operation': async.id},
-                        status=status.HTTP_202_ACCEPTED)
+        serializer = self.get_serializer(project)
+        return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+
 
     @action()
     @util.log_error(Project)
     def thaw(self, request, pk):
         # self.log.debug("thaw: self=%r request=%r pk=%r",
         #                self, request, pk)
-        project = Project.objects.get(pk=pk)
+        project = self.get_object()
 
         if not project.account.active:
             return Response({'error': 'Account is inactive'},
@@ -142,9 +140,12 @@ class ProjectViewSet(BaseViewSet):
              refresh_account.si(project.account.id, forced=True))
             )
 
-        return Response({'message': 'Project thawing started',
-                         'operation': async.id},
-                        status=status.HTTP_202_ACCEPTED)
+        serializer = self.get_serializer(project)
+        return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+
+        # return Response({'message': 'Project thawing started',
+        #                  'operation': async.id},
+        #                 status=status.HTTP_202_ACCEPTED)
 
 class InstanceViewSet(viewsets.ReadOnlyModelViewSet):
     model = Instance

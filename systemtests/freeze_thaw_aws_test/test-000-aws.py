@@ -9,10 +9,9 @@ class ValidateAws(util.Mixin, unittest.TestCase):
                      if i.state == 'running']
         self.assertTrue(len(instances) > 0,
                         "AWS account does not contain any running instances")
-        self.assertTrue(len(instances) > 6,
+        self.assertTrue(len(instances) >= 6,
                         "AWS doesn't contain at least 6 "
                         "running instances: %s" % (instances,))
-        assert False
 
     def test02InstancesRunning(self):
         """000-02 Wait until all instances are running"""

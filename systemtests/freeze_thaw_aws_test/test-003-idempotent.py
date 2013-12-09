@@ -107,7 +107,7 @@ class IdempotentTests(Mixin, unittest.TestCase):
 
         # The domain update on immutable field should just be ignored,
         # turning the request into no-op.
-        r = self.client.patch(self.account, {'domain': self.dummy_domain})
+        r = self.client.patch(self.account, {'domain': self.dummy_domain.id})
         self.assertCode(r, 200)
         self.assertEqual(r.data['domain'], data['domain'])
 
@@ -134,7 +134,7 @@ class IdempotentTests(Mixin, unittest.TestCase):
 
         # The account update on immutable field should just be
         # ignored, turning the request into no-op.
-        r = self.client.patch(project, {'account': self.dummy_account})
+        r = self.client.patch(project, {'account': self.dummy_account.id})
         self.assertCode(r, 200)
         self.assertEqual(r.data['account'], data['account'])
 
@@ -167,7 +167,7 @@ class IdempotentTests(Mixin, unittest.TestCase):
         self.assertTrue(r.data['active'])
         updated = r.data['updated']
 
-        with self.resource_saver(self.cleanup(r.data)):
+        with self.resource_saver(self.account, self.cleanup(r.data)):
             r = self.client.patch(self.account, {'active': False})
             self.assertCode(r, 200)
             self.assertFalse(r.data['active'])
@@ -190,7 +190,7 @@ class IdempotentTests(Mixin, unittest.TestCase):
         r = self.client.get(self.account)
         self.assertCode(r, 200)
 
-        with self.resource_saver(self.cleanup(r.data)):
+        with self.resource_saver(self.account, self.cleanup(r.data)):
             r = self.client.patch(self.account, {'active': False})
             self.assertCode(r, 200)
             self.assertFalse(r.data['active'])
@@ -234,8 +234,9 @@ class IdempotentTests(Mixin, unittest.TestCase):
 
         try:
             for p in r.data:
-                old_regions.append((p['url'], p['regions']))
-                r = self.client.patch(p['url'], {'regions': []})
+                url = "/project/%s/" % (p['id'],)
+                old_regions.append((url, p['regions']))
+                r = self.client.patch(url, {'regions': []})
                 self.assertCode(r, 200)
 
             r = self.client.get(self.account)

@@ -274,10 +274,8 @@ class TestREST(test.APITestCase):
             response = self.client.post(reverse('project-freeze', args=[1]))
             self.assertEqual(response.status_code, 202)
             self.assertEqual(len(factory.aws_list), 3)
-            self.assertTrue('message' in response.data)
-            self.assertTrue('operation' in response.data)
-            self.assertEqual(response.data['message'],
-                             'Project freezing started')
+            self.assertTrue('state' in response.data)
+            self.assertEqual(response.data['state'], 'freezing')
 
             # Combine calls from all AWS mocks
             calls = chain.from_iterable([a.calls for a in factory.aws_list])
@@ -332,11 +330,11 @@ class TestREST(test.APITestCase):
             response = self.client.post(reverse('project-thaw', args=[1]))
             self.assertEqual(response.status_code, 202)
             self.assertEqual(len(factory.aws_list), 3)
-            self.assertTrue('message' in response.data)
-            self.assertTrue('operation' in response.data)
-            self.assertEqual(response.data['message'],
-                             'Project thawing started')
-
+            self.assertTrue('state' in response.data)
+            self.assertEqual(response.data['state'], 'thawing')
+            # the actual project should now be in running state due to
+            # synchronous task, the above response should reflect the
+            # state when the task wasn't yet actually run
             self.assertEqual(Project.objects.get(pk=1).state, "running")
 
             # Combine calls from all AWS mocks

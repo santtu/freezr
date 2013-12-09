@@ -162,14 +162,14 @@ class Mixin(util.Logger):
 
         return inner(self.client, project, self)
 
-    def resource_saver(self, data):
-        """Save resource's `data`, which is assumed to contain a valid
-        `url` for the resource. At __exit__ this will `put` the saved
-        data."""
+    def resource_saver(self, url, data):
+        """Save resourced `url`'s `data`. At __exit__ this will `put`
+        the saved data."""
 
         class inner(object):
-            def __init__(self, client, data, parent):
+            def __init__(self, client, url, data, parent):
                 self.client = client
+                self.url = url
                 self.data = data
                 self.parent = parent
                 # kludge
@@ -187,13 +187,13 @@ class Mixin(util.Logger):
                 try:
                     if self.is_project:
                         self.parent.until_project_in_state(
-                            data['url'],
+                            self.url,
                             ('running', 'frozen'))
 
                     log.debug('resource_saver: restoring %s: %r',
-                              data['url'], self.data)
+                              self.url, self.data)
 
-                    r = self.client.put(data['url'], self.data)
+                    r = self.client.put(self.url, self.data)
                     self.parent.assertCode(r, 200)
                 except:
                     log.exception('oops')
@@ -203,7 +203,7 @@ class Mixin(util.Logger):
             def __getitem__(self, key):
                 return self.data[key]
 
-        return inner(self.client, data, self)
+        return inner(self.client, url, data, self)
 
     def match(self, data, pattern):
         keys = pattern.keys()
@@ -252,9 +252,15 @@ class Mixin(util.Logger):
 
     def _get(self, key, path, pattern):
         if key not in self._cache:
+            class idstr(str):
+                pass
+
             r = self.client.get(path)
             self.assertCode(r, 200)
-            self._cache[key] = self.match(r.data, pattern)['url']
+            data = self.match(r.data, pattern)
+            value = idstr("%s%s/" % (path, data['id']))
+            setattr(value, 'id', data['id'])
+            self._cache[key] = value
 
         return self._cache.get(key)
 
