@@ -355,7 +355,7 @@ DS.DebugAdapter = Ember.DataAdapter.extend({
 DS.Transform = Ember.Object.extend({
 
   serialize: Ember.required(),
-  
+
   deserialize: Ember.required()
 
 });
@@ -435,7 +435,7 @@ DS.DateTransform = DS.Transform.extend({
     } else {
       return null;
     }
-  } 
+  }
 
 });
 
@@ -4944,7 +4944,7 @@ DS.Model.reopenClass({
     var options = this.metaForProperty(name).options;
 
     if (options.inverse === null) { return null; }
-    
+
     var inverseName, inverseKind;
 
     if (options.inverse) {
@@ -5086,7 +5086,7 @@ DS.Model.reopenClass({
         App.Blog = DS.Model.extend({
           users: DS.hasMany('user'),
           owner: DS.belongsTo('user'),
-  
+
           posts: DS.hasMany('post')
         });
 

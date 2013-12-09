@@ -114,17 +114,29 @@ class AccountSerializer(util.Logger, ImmutableMixin,
 class ProjectSerializer(util.Logger, ImmutableMixin,
 #                        serializers.HyperlinkedModelSerializer):
                         serializers.ModelSerializer):
-    picked_instances = serializers.HyperlinkedRelatedField(
-        many=True, view_name='instance-detail', read_only=True)
+    # picked_instances = serializers.HyperlinkedRelatedField(
+    #     many=True, view_name='instance-detail', read_only=True)
 
-    saved_instances = serializers.HyperlinkedRelatedField(
-        many=True, view_name='instance-detail', read_only=True)
+    # saved_instances = serializers.HyperlinkedRelatedField(
+    #     many=True, view_name='instance-detail', read_only=True)
 
-    terminated_instances = serializers.HyperlinkedRelatedField(
-        many=True, view_name='instance-detail', read_only=True)
+    # terminated_instances = serializers.HyperlinkedRelatedField(
+    #     many=True, view_name='instance-detail', read_only=True)
 
-    skipped_instances = serializers.HyperlinkedRelatedField(
-        many=True, view_name='instance-detail', read_only=True)
+    # skipped_instances = serializers.HyperlinkedRelatedField(
+    #     many=True, view_name='instance-detail', read_only=True)
+
+    picked_instances = serializers.PrimaryKeyRelatedField(
+        many=True, read_only=True)
+
+    saved_instances = serializers.PrimaryKeyRelatedField(
+        many=True, read_only=True)
+
+    terminated_instances = serializers.PrimaryKeyRelatedField(
+        many=True, read_only=True)
+
+    skipped_instances = serializers.PrimaryKeyRelatedField(
+        many=True, read_only=True)
 
     regions = CommaStringListField(source='_regions')
 
@@ -231,7 +243,7 @@ class InstanceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Instance
-        fields = ('account', 'instance_id', 'region', 'vpc_id',
+        fields = ('id', 'account', 'instance_id', 'region', 'vpc_id',
                   'store', 'state', 'tags',
                   #'url',
                   )

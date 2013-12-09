@@ -74,7 +74,8 @@
 
     <script type="text/x-handlebars" id="projects-project">
       <div class="row project-list">
-	<div class="col-sm-10 project-info project-shrinker">
+	<div {{bind-attr class=":project-info :project-shrinker parentView.actionsVisible:col-sm-8:col-sm-10"}}>
+	<!-- <div class="col-sm-10 project-info project-shrinker"> -->
 	  <div class="row">
 	    <div class="col-xs-1 project-info-expand">
 	      {{#if view.expanded}}
@@ -146,10 +147,10 @@
 	    <small>for {{timeSince stateChanged}}</small>
 	  </div>
 	</div>
-	<div class="col-sm-2 project-actions project-expander" style="display: none";>
-	  <button class="btn btn-default col-xs-12">Edit</button><br>
-	  <button class="btn btn-default col-xs-12">Refresh</button>
-	  <button class="btn btn-default col-xs-12">Deactivate</button>
+	<div {{bind-attr class=":col-sm-2 :project-actions :project-expander parentView.actionsVisible::hidden"}}>
+	  <button class="btn btn-default col-xs-12" {{action 'edit' this}}>Edit</button><br>
+	  <button class="btn btn-default col-xs-12" {{action 'refresh' this}}>Refresh</button>
+	  <button class="btn btn-default col-xs-12" {{action 'deactivate' this}}>Deactivate</button>
 	</div>
       </div>
 
@@ -176,33 +177,46 @@
       </ul>
     </script>
 
+    <script type="text/x-handlebars" id="components/actions-expander">
+      {{log this}}
+      {{#if parentView.actionsVisible}}
+      <a href="#" class="glyphicon glyphicon-chevron-right" {{action "collapse" target="parentView"}}></a>
+      {{else}}
+      <a href="#" class="glyphicon glyphicon-chevron-left" {{action "expand" target="parentView"}}></a>
+      {{/if}}
+    </script>
+
     <script type="text/x-handlebars" id="projects/index">
+      <h1>Projects</h1>
+
       <div id="project-list-view">
 	<div class="project-list-header">
 	  <div class="row">
 	    <div class="col-sm-10"></div>
 	    <div class="col-sm-2 project-action-expand text-right">
-	      <a href="#" class="glyphicon glyphicon-chevron-left"></a>
-	      <a href="#" class="glyphicon glyphicon-chevron-right" style="display: none;"></a></div>
+	      {{actions-expander}}
+	    </div>
 	  </div>
 	</div>
 
 	{{#each projects}}
+	{{#with view as parentView}}
 	{{view "App.ProjectsProjectView"}}
+	{{/with}}
 	{{/each}}
 
 	<div class="project-list-footer">
-	  <div class="row project-expander" style="display: none;">
+	  <div {{bind-attr class=":row :project-expander view.actionsVisible::hidden"}}>
 	    <div class="col-sm-10"></div>
 	    <div class="col-sm-2">
-	      <button class="btn btn-default col-xs-12"><span class="glyphicon glyphicon-plus"></span></button><br>
+	      <button class="btn btn-default col-xs-12" {{action 'create'}}><span class="glyphicon glyphicon-plus"></span></button><br>
 	    </div>
 	  </div>
 	  <div class="row">
 	    <div class="col-sm-10"></div>
 	    <div class="col-sm-2 project-action-expand text-right">
-	      <a href="#" class="glyphicon glyphicon-chevron-left"></a>
-	      <a href="#" class="glyphicon glyphicon-chevron-right" style="display: none;"></a></div>
+	      {{actions-expander}}
+	    </div>
 	  </div>
 	</div>
       </div>

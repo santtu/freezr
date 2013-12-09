@@ -33,7 +33,7 @@ Transforms.map = DS.Transform.extend
     if Em.typeOf(jsonData) is 'object' then jsonData else {}
 
   deserialize: (externalData)->
-    console?.log "map.deserialize", externalData
+    #console?.log "map.deserialize", externalData
     ary2obj = (ary) ->
       obj = {}
       for item in ary
@@ -92,50 +92,70 @@ url = (p) -> freezr_api_root + p
 
 window.App = App = Ember.Application.create
   LOG_TRANSITIONS: true
+  LOG_TRANSITIONS_INTERNAL: true
+  LOG_VIEW_LOOKUPS: true
+  LOG_BINDINGS: true
+  LOG_ACTIVE_GENERATION: true
+
+Ember.RSVP.configure 'onerror', (error) ->
+    Ember.Logger.assert(false, error)
+
+Ember.run.backburner.debug = true
 
 App.register 'transform:array', Transforms.array
 App.register 'transform:map', Transforms.map
 
-# DS.DjangoRESTSerializer = DS.DjangoRESTSerializer.extend
-#   patchInJSONRoot: () ->
-#     console?.log "here, patchInJSONRoot"
-#     return []
+App.FreezrSerializer = DS.RESTSerializer.extend
+  extractSingle: (store, type, payload) ->
+    serializer = store.serializerFor(type)
+    return serializer.normalize(type, payload, type.typeKey)
 
-#   extract: () ->
-#     console?.log "here, extract"
-#     return []
+  extractArray: (store, type, payload) ->
+    try
+      payload = @normalizePayload type, payload
+      serializer = store.serializerFor(type)
 
-# App.DefaultSerializer = DS.DjangoRESTSerializer.extend
-#   extract: () ->
-#     dsoifsjiofosd
+      array = (serializer.normalize(type, elt, type.typeKey) \
+        for elt in payload)
 
-# App.Adapter = DS.DjangoRESTAdapter.extend
-#   namespace: 'api'
-#   pathForType: (type) ->
-#     console?.log "pathForType: type", type
-#     return type
-#   defaultSerializer: "App/Default"
-# #  serializer: new App.DefaultSerializer()
-#   serializer: new DS.DjangoRESTSerializer()
-#   extract: () ->
-#     console?.log "extract"
-#     return []
+      return array
+    catch error
+      console?.log "error", error
+      return []
 
-# DS.DjangoRESTAdapter = DS.DjangoRESTAdapter.extend
-#   # no plurarizations, all are base type names
+  normalizeRelationships: (type, payload) ->
+    #console?.log "normalizeRelationships: type", type, "payload", JSON.stringify(payload)
+    ret = @_super type, payload
+    #console?.log "=>", ret
+    ret
 
-# App.reopen
-#   ApplicationAdapter: DS.DjangoRESTAdapter.extend
-#     namespace: 'api'
-#     pathForType: (type) -> type + "/"
+  attributeKeys:
+    'storageType': 'store'
+
+  # Can't use "store" as key in model, it conflicts with Ember's own
+  # .store field. Rename from JSON response 'store' to 'storageType'
+  # field. Also, decamelize keys otherwise.
+  keyForAttribute: (attr) ->
+    if attr of @attributeKeys
+      return @attributeKeys[attr]
+    Ember.String.decamelize(attr)
+
+  keyForRelationship: (attr, relationship) ->
+    if attr of @attributeKeys
+      return @attributeKeys[attr]
+    Ember.String.decamelize(attr)
+
+App.FreezrAdapter = DS.RESTAdapter.extend
+  serializer: new App.FreezrSerializer()
+  defaultSerializer: "App/Freezr"
+
+  pathForType: (type) ->
+    #console?.log "pathForType: type", type
+    return type
 
 App.reopen
-  ApplicationAdapter: DS.FixtureAdapter.extend {}
-
-# App.reopen
-#   ApplicationAdapter: DS.DjangoRESTAdapter.extend
-#     namespace: 'api'
-#     pathForType: (type) -> type
+  ApplicationAdapter: App.FreezrAdapter.extend
+    namespace: "api"
 
 App.Domain = DS.Model.extend
   name: DS.attr('string')
@@ -297,10 +317,11 @@ App.ProjectsController = Ember.Controller.extend {}
 
 App.ProjectController = Ember.ObjectController.extend {}
 
-  # isExpanded: false
-  # actions:
-  #   expand: () -> this.set 'isExpanded', true
-  #   collapse: () -> this.set 'isExpanded', false
+App.ProjectsIndexView = Ember.View.extend
+  actionsVisible: false
+  actions:
+    expand: () -> @set('actionsVisible', true)
+    collapse: () -> @set('actionsVisible', false)
 
 App.ProjectsIndexController = Ember.ObjectController.extend
   actions:
@@ -308,20 +329,33 @@ App.ProjectsIndexController = Ember.ObjectController.extend
       console?.log "thaw", arguments
     freeze: () ->
       console?.log "freeze", arguments
+    edit: () ->
+      console?.log "edit", arguments
+    refresh: () ->
+      console?.log "refresh", arguments
+    deactivate: () ->
+      console?.log "deactivate", arguments
+    create: () ->
+      console?.log "create", arguments
 
 App.ProjectsProjectView = Ember.View.extend
   templateName: 'projects-project'
   expanded: false
   actions:
-    expand: () -> this.set 'expanded', true
-    collapse: () -> this.set 'expanded', false
+    expand: () -> @set 'expanded', true
+    collapse: () -> @set 'expanded', false
 
   didInsertElement: () ->
-    console?.log "didInsertElement"
+    #console?.log "didInsertElement"
     @$('.dropdown-toggle').dropdown()
 
 App.ProjectsProjectController = Ember.ObjectController.extend
   isRunning: true
+
+App.ActionsExpanderComponent = Ember.Component.extend
+  actions:
+    expand: () ->
+      debugger
 
 App.IndexRoute = Ember.Route.extend
   redirect: () -> @transitionTo 'projects'
@@ -338,23 +372,21 @@ allRoute = Ember.Route.extend
 App.HomeRoute = allRoute.extend {}
 App.ProjectsIndexRoute = allRoute.extend {}
 
-$ ->
-  $(".project-list .project-info").each (index, el) ->
-    $(el).find('.project-info-expand a').click () ->
-      $(el).find('.project-info-long').toggle()
-      $(el).find('.project-info-expand a').toggle()
+# $ ->
+#   $(".project-list .project-info").each (index, el) ->
+#     $(el).find('.project-info-expand a').click () ->
+#       $(el).find('.project-info-long').toggle()
+#       $(el).find('.project-info-expand a').toggle()
 
-  actionColumnVisible = false
+#   actionColumnVisible = false
 
-  $('.project-action-expand').click () ->
-    actionColumnVisible = not actionColumnVisible
+#   $('.project-action-expand').click () ->
+#     actionColumnVisible = not actionColumnVisible
 
-    if actionColumnVisible
-      $('.project-shrinker').removeClass('col-sm-10').addClass('col-sm-8')
-    else
-      $('.project-shrinker').removeClass('col-sm-8').addClass('col-sm-10')
+#     if actionColumnVisible
+#       $('.project-shrinker').removeClass('col-sm-10').addClass('col-sm-8')
+#     else
+#       $('.project-shrinker').removeClass('col-sm-8').addClass('col-sm-10')
 
-    $('.project-expander').toggle(actionColumnVisible)
-    $('.project-action-expand a').toggle()
-
-  # $('.dropdown-toggle').dropdown()
+#     $('.project-expander').toggle(actionColumnVisible)
+#     $('.project-action-expand a').toggle()

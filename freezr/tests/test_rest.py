@@ -49,7 +49,7 @@ class TestREST(test.APITestCase):
         self.assertEqual(2, len(response.data))
         self.assertItemsEqual(flatu([d.keys() for d in response.data]),
                               ('id', 'name', 'description', 'active',
-                               'accounts', 'log_entries', 'domain', 'url'))
+                               'accounts', 'log_entries', 'domain'))
 
     def testGetDomain(self):
         response = self.client.get(reverse('domain-detail', args=[1]))
@@ -58,21 +58,18 @@ class TestREST(test.APITestCase):
                           'name': u'Test domain no. 1',
                           'description': u'',
                           'active': True,
-                          'accounts': ['http://testserver/api/account/1/',
-                                       'http://testserver/api/account/2/'],
+                          'accounts': [1,2],
                           'log_entries': [],
-                          'domain': u'test.local',
-                          'url': 'http://testserver/api/domain/1/'})
+                          'domain': u'test.local'})
         response = self.client.get(reverse('domain-detail', args=[2]))
         self.assertSimilar(response.data,
                          {'id': 2,
                           'name': u'Test domain no. 2',
                           'description': u'',
                           'active': True,
-                          'accounts': ['http://testserver/api/account/3/'],
+                          'accounts': [3],
                           'log_entries': [],
-                          'domain': u'domain.com',
-                          'url': 'http://testserver/api/domain/2/'})
+                          'domain': u'domain.com'})
 
     def testListAccounts(self):
         response = self.client.get(reverse('account-list'))
@@ -81,17 +78,17 @@ class TestREST(test.APITestCase):
         self.assertItemsEqual(flatu([d.keys() for d in response.data]),
                               ('id', 'domain', 'name', 'access_key', 'active',
                                'projects', 'regions', 'instances', 'updated',
-                               'log_entries', 'url'))
+                               'log_entries'))
 
     def testGetAccount(self):
         response = self.client.get(reverse('account-detail', args=[1]))
         self.assertSimilar(response.data,
                          {'id': 1,
-                          'domain': 'http://testserver/api/domain/1/',
+                          'domain': 1,
                           'name': u'Test account no. 1.1',
                           'access_key': u'123456',
                           'active': True,
-                          'projects': ['http://testserver/api/project/1/'],
+                          'projects': [1],
                           'regions': [u'us-east-1',
                                       u'ap-northeast-1',
                                       u'sa-east-1',
@@ -100,17 +97,14 @@ class TestREST(test.APITestCase):
                                       u'us-west-2',
                                       u'us-west-1',
                                       u'eu-west-1'],
-                          'instances': [
-                    'http://testserver/api/instance/1/',
-                    'http://testserver/api/instance/2/'],
+                          'instances': [1,2],
                           'updated': None,
-                          'log_entries': [],
-                          'url': 'http://testserver/api/account/1/'})
+                          'log_entries': []})
 
         response = self.client.get(reverse('account-detail', args=[2]))
         self.assertSimilar(response.data,
                          {'id': 2,
-                          'domain': 'http://testserver/api/domain/1/',
+                          'domain': 1,
                           'name': u'Test account no. 1.2',
                           'access_key': u'567890',
                           'active': True,
@@ -118,17 +112,16 @@ class TestREST(test.APITestCase):
                           'regions': [],
                           'instances': [],
                           'updated': None,
-                          'log_entries': [],
-                          'url': 'http://testserver/api/account/2/'})
+                          'log_entries': []})
 
         response = self.client.get(reverse('account-detail', args=[3]))
         self.assertSimilar(response.data,
                          {'id': 3,
-                          'domain': 'http://testserver/api/domain/2/',
+                          'domain': 2,
                           'name': u'Test account no. 2.1',
                           'access_key': u'fnord',
                           'active': True,
-                          'projects': ['http://testserver/api/project/2/'],
+                          'projects': [2],
                           'regions': [u'us-east-1',
                                       u'ap-northeast-1',
                                       u'sa-east-1',
@@ -137,10 +130,7 @@ class TestREST(test.APITestCase):
                                       u'us-west-2',
                                       u'us-west-1',
                                       u'eu-west-1'],
-                          'instances': [
-                    'http://testserver/api/instance/3/',
-                    'http://testserver/api/instance/4/',
-                    'http://testserver/api/instance/5/'],
+                          'instances': [3, 4, 5],
                           'updated': None,
                           'log_entries': [{'type': u'info',
                                            'time': datetime(2013, 11, 22,
@@ -150,8 +140,7 @@ class TestREST(test.APITestCase):
                                            'message': u'Sample log entry',
                                            'details': None,
                                            'user_id': None,
-                                           'user': None}],
-                          'url': 'http://testserver/api/account/3/'})
+                                           'user': None}]})
 
     def testListProjects(self):
         response = self.client.get(reverse('project-list'))
@@ -163,14 +152,14 @@ class TestREST(test.APITestCase):
                                'save_filter', 'terminate_filter',
                                'picked_instances', 'saved_instances',
                                'terminated_instances', 'skipped_instances',
-                               'log_entries', 'url'))
+                               'log_entries'))
 
     def testGetProject(self):
         response = self.client.get(reverse('project-detail', args=[1]))
         self.assertSimilar(response.data,
                          {'id': 1,
                           'state': u'init',
-                          'account': 'http://testserver/api/account/1/',
+                          'account': 1,
                           'regions': [u'us-east-1',
                                       u'ap-northeast-1',
                                       u'sa-east-1',
@@ -185,21 +174,16 @@ class TestREST(test.APITestCase):
                           'pick_filter': u'tag[project111]',
                           'save_filter': u'tag[save]',
                           'terminate_filter': u'tag[terminate]',
-                          'picked_instances': [
-                    'http://testserver/api/instance/2/',
-                    'http://testserver/api/instance/1/'],
-                          'saved_instances': [
-                    'http://testserver/api/instance/1/'],
+                          'picked_instances': [2, 1],
+                          'saved_instances': [1],
                           'skipped_instances': [],
-                          'terminated_instances': [
-                    'http://testserver/api/instance/2/'],
-                          'log_entries': [],
-                          'url': 'http://testserver/api/project/1/'})
+                          'terminated_instances': [2],
+                          'log_entries': []})
         response = self.client.get(reverse('project-detail', args=[2]))
         self.assertSimilar(response.data,
                          {'id': 2,
                           'state': u'init',
-                          'account': 'http://testserver/api/account/3/',
+                          'account': 3,
                           'regions': [u'us-east-1',
                                       u'ap-northeast-1',
                                       u'sa-east-1',
@@ -214,18 +198,12 @@ class TestREST(test.APITestCase):
                           'pick_filter': u'tag[project211]',
                           'save_filter': u'true',
                           'terminate_filter': u'',
-
-                          'picked_instances': [
-                    'http://testserver/api/instance/5/',
-                    'http://testserver/api/instance/3/'],
-                          'saved_instances': [
-                    'http://testserver/api/instance/5/',
-                    'http://testserver/api/instance/3/'],
+                          'picked_instances': [5, 3],
+                          'saved_instances': [5, 3],
                           'skipped_instances': [],
                           'terminated_instances': [],
 
-                          'log_entries': [],
-                          'url': 'http://testserver/api/project/2/'})
+                          'log_entries': []})
 
     # Note that this absolutely requires that you either have set up a
     # testing celery with the same test database as this test is using
