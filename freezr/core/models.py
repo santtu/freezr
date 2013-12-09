@@ -227,12 +227,12 @@ class Account(BaseModel):
         # Go through projects that are 'init' state and see if they
         # have any picked or saved instances --- then we move them to
         # "running" state.
-        for project in self.projects.filter(state='init').all():
+        for project in self.projects.filter(state_actual='init').all():
             if project.picked_instances or project.saved_instances:
                 project.log_entry('Moving {0} from initializing to '
                                       'running state'.format(project))
-                project.state = 'running'
-                project.save(update_fields=['state'])
+
+                project.save_state('running')
 
     @property
     def regions(self):
@@ -392,13 +392,36 @@ class Project(BaseModel):
     name = models.CharField(max_length=255)
 
     # State of this project
-    state = models.CharField(max_length=30, choices=PROJECT_STATES_CHOICES,
-                             default='init')
+    state_actual = models.CharField(
+        max_length=30, choices=PROJECT_STATES_CHOICES,
+        default='init')
+
+    @property
+    def state(self):
+        return self.state_actual
+
+    @state.setter
+    def state(self, value):
+        self.log.debug("state setter: current %s new %s",
+                       self.state_actual, value)
+
+        if value != self.state_actual:
+            self.state_changed = timezone.now()
+
+        self.state_actual = value
+
+    def save_state(self, new_state):
+        if self.state != new_state:
+            self.state = new_state
+            self.save(update_fields=['state_actual', 'state_changed'])
 
     # Always in a domain, utilizing one account (but multiple projects
     # may use the same account). Note that the domain is implicit, via
     # account, but we purposefully create a shortcut here for it.
     account = models.ForeignKey('Account', related_name='projects')
+
+    # When was the last state change for this project.
+    state_changed = models.DateTimeField(auto_now_add=True)
 
     @property
     def domain(self):
@@ -407,7 +430,7 @@ class Project(BaseModel):
     # Region where this project applies to, this is encoded as a char
     # field, below we have a property to allow setting and retrieving
     # this as a list.
-    _regions = models.CharField(max_length=255, default=",".join(EC2_REGIONS), blank=True)
+    regions_actual = models.CharField(max_length=255, default=",".join(EC2_REGIONS), blank=True)
     # Long description
     description = models.TextField(blank=True)
 
@@ -479,13 +502,16 @@ class Project(BaseModel):
 
     @property
     def regions(self):
-        if not self._regions:
+        if not self.regions_actual:
             return []
-        return self._regions.split(",")
+        return self.regions_actual.split(",")
 
     @regions.setter
     def regions(self, value):
-        self._regions = ",".join(list(set(value)))
+        if isinstance(value, str):
+            self.regions_actual = value
+        else:
+            self.regions_actual = ",".join(list(set(value)))
 
     def _log_entry(self, l):
         l.project = self
@@ -524,8 +550,7 @@ class Project(BaseModel):
 
         started = timezone.now()
 
-        self.state = 'freezing'
-        self.save(update_fields=['state'])
+        self.save_state('freezing')
 
         for instance in terminate_instances:
             self.log_entry('Terminating instance {0}'.format(instance))
@@ -537,8 +562,7 @@ class Project(BaseModel):
 
         # TODO: EIP information storage
 
-        self.state = 'frozen'
-        self.save(update_fields=['state'])
+        self.save_state('frozen')
 
         elapsed = timezone.now() - started
 
@@ -565,15 +589,13 @@ class Project(BaseModel):
 
         started = timezone.now()
 
-        self.state = 'thawing'
-        self.save(update_fields=['state'])
+        self.save_state('thawing')
 
         for instance in saved_instances:
             self.log_entry('Thawing instance {0}'.format(instance))
             aws.thaw_instance(instance)
 
-        self.state = 'running'
-        self.save(update_fields=['state'])
+        self.save_state('running')
 
         elapsed = timezone.now() - started
 

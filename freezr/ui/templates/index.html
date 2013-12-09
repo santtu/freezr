@@ -16,6 +16,8 @@
     <!-- Bootstrap core CSS -->
     <link href="{% static "freezr_ui/css/bootstrap.css" %}" rel="stylesheet">
 
+    <link href="{% static "freezr_ui/css/animate-20131128.css" %}" rel="stylesheet">
+
     <!-- Custom styles for this template -->
     <!-- <link href="{% static "freezr_ui/css/freezr.css" %}" rel="stylesheet"> -->
     <link href="{{ STATIC_URL }}{% less "freezr_ui/less/freezr.less" %}" rel="stylesheet">
@@ -142,15 +144,28 @@
 	    </div>
 	    {{/if}}
 	    {{#if cannotChange}}
-	    cannot change
+	    {{#if isFreezing}}
+	    <div class="btn btn-info col-xs-12 animated operation-in-progress">Freezing</div>
+	    {{else}}
+	    {{#if isThawing}}
+	    <div class="btn btn-warning col-xs-12 animated operation-in-progress">Thawing</div>
+	    {{else}}
+	    Unhandled state <b>{{state}}</b>
 	    {{/if}}
-	    <small>for {{timeSince stateChanged}}</small>
+	    {{/if}}
+	    {{/if}}
+	    <small>for {{view "App.FromNowView" valueBinding="stateChanged"}}</small>
+	    ({{stateChanged}})
 	  </div>
 	</div>
 	<div {{bind-attr class=":col-sm-2 :project-actions :project-expander parentView.actionsVisible::hidden"}}>
 	  <button class="btn btn-default col-xs-12" {{action 'edit' this}}>Edit</button><br>
-	  <button class="btn btn-default col-xs-12" {{action 'refresh' this}}>Refresh</button>
-	  <button class="btn btn-default col-xs-12" {{action 'deactivate' this}}>Deactivate</button>
+	  {{#if isReloading}}
+	  <button class="btn btn-default col-xs-12 has-spinner active"><span class="glyphicon glyphicon-refresh animation"></span></button>
+	  {{else}}
+	  <button class="btn btn-default col-xs-12 has-spinner active" {{action 'refresh' this}}><span class="glyphicon glyphicon-refresh"></span></button>
+	  {{/if}}
+	  <button class="btn btn-default col-xs-12" {{action 'deactivate' this}}><span class="glyphicon glyphicon-pause"></span></button>
 	</div>
       </div>
 
@@ -206,10 +221,15 @@
 	{{/each}}
 
 	<div class="project-list-footer">
-	  <div {{bind-attr class=":row :project-expander view.actionsVisible::hidden"}}>
+	  <div {{bind-attr class=":row :projects-actions :project-expander view.actionsVisible::hidden"}}>
 	    <div class="col-sm-10"></div>
 	    <div class="col-sm-2">
-	      <button class="btn btn-default col-xs-12" {{action 'create'}}><span class="glyphicon glyphicon-plus"></span></button><br>
+	      {{#if refreshingAll}}
+	      <button class="btn btn-info col-xs-12"><span class="glyphicon glyphicon-refresh animation"></span></button>
+	      {{else}}
+	      <button class="btn btn-info col-xs-12" {{action 'refreshAll'}}><span class="glyphicon glyphicon-refresh"></span></button>
+	      {{/if}}
+	      <button class="btn btn-info col-xs-12" {{action 'create'}}><span class="glyphicon glyphicon-plus"></span></button>
 	    </div>
 	  </div>
 	  <div class="row">
@@ -260,6 +280,7 @@
     <!-- Placed at the end of the document so the pages load faster -->
     <script>freezr_api_root = "{{ api_root }}";</script>
     <script src="{% static "freezr_ui/js/jquery-1.10.2.js" %}"></script>
+    <script src="{% static "freezr_ui/js/moment-2.4.0.js" %}"></script>
     <script src="{% static "freezr_ui/js/handlebars-1.1.2.js" %}"></script>
     <script src="{% static "freezr_ui/js/ember-1.2.0.js" %}"></script>
     <!-- todo: remember to track updates, this is beta.3 -->

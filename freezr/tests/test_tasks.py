@@ -36,7 +36,7 @@ class TestTasks(test.TestCase):
         self.account.save()
 
         self.project = Project(account=self.account, name="Test",
-                               _regions="us-east-1")
+                               regions="us-east-1")
         self.project.save()
 
         self.instance = self.account.new_instance(instance_id="i-123",

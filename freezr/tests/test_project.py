@@ -20,7 +20,7 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
                                access_key="1234",
                                secret_key="abcd")
         self.account.save()
-        self.project = self.account.new_project(name="test", state='running')
+        self.project = self.account.new_project(name="test", state_actual='running')
         self.project.save()
         self.id = 10000
         self.instances = []
@@ -222,7 +222,7 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
         aws = util.AwsMock()
 
         def reset():
-            self.project.state = 'running'
+            self.project.state_actual = 'running'
             self.project.save()
             aws.reset()
 

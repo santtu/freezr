@@ -37,7 +37,7 @@ class TestAccount(FreezrTestCaseMixin, test.TestCase):
         old = self.account.updated
 
         Project(name="Test project", account=self.account,
-                _regions="a,b,c,d,e,f").save()
+                regions="a,b,c,d,e,f").save()
         self.assertEqual(6, len(self.account.regions))
 
         time.sleep(0.01) # make sure some time passes, we're comparing timestamps
@@ -47,11 +47,11 @@ class TestAccount(FreezrTestCaseMixin, test.TestCase):
         self.assertEqual(set([u'a', u'b', u'c', u'd', u'e', u'f']), set([c[2] for c in self.aws.calls]))
         self.assertNotEqual(old, self.account.updated)
 
-        Project(name="Test project 2", account=self.account, _regions="").save()
+        Project(name="Test project 2", account=self.account, regions="").save()
         print(self.account.regions)
         self.assertEqual(6, len(self.account.regions))
 
-        Project(name="Test project 3", account=self.account, _regions="a,k,l").save()
+        Project(name="Test project 3", account=self.account, regions="a,k,l").save()
         self.assertEqual(8, len(self.account.regions))
         self.assertEqual(3, self.account.projects.count())
 
@@ -85,7 +85,7 @@ class TestAccount(FreezrTestCaseMixin, test.TestCase):
         # when the project matches instances
 
         p = self.account.new_project(name='test',
-                                     _regions='a',
+                                     regions='a',
                                      pick_filter='tag[Name] = target')
         p.save()
         project_id = p.id
@@ -121,7 +121,7 @@ class TestAccount(FreezrTestCaseMixin, test.TestCase):
         # test case when region is removed from project on account,
         # removing that region from the complete list -- instances on
         # non-reachable regions should be removed
-        p = self.account.new_project(name="test", _regions="a,b")
+        p = self.account.new_project(name="test", regions="a,b")
         p.save()
 
         for id, region in (('i-0001', 'a'), ('i-0002', 'b')):

@@ -138,9 +138,15 @@ class ProjectSerializer(util.Logger, ImmutableMixin,
     skipped_instances = serializers.PrimaryKeyRelatedField(
         many=True, read_only=True)
 
-    regions = CommaStringListField(source='_regions')
+    regions = CommaStringListField(source='regions_actual')
 
     log_entries = LogEntrySerializer(many=True, read_only=True)
+
+    state_changed = serializers.Field()
+
+    # Change this into read-only field later .. useful for debugging
+    # to be able to write this directly, though.
+    state = serializers.CharField(source='state', required=False)
 
     def restore_object(self, attrs, instance=None):
         # Cannot change filters if the project is in active state.
@@ -165,8 +171,8 @@ class ProjectSerializer(util.Logger, ImmutableMixin,
         request_regions = instance_regions = set(instance and
                                                  instance.regions or [])
 
-        if '_regions' in attrs:
-            request_regions = set(separator_split(attrs['_regions'], ","))
+        if 'regions_actual' in attrs:
+            request_regions = set(separator_split(attrs['regions_actual'], ","))
 
         refresh = False
 
@@ -232,7 +238,7 @@ class ProjectSerializer(util.Logger, ImmutableMixin,
                   'pick_filter', 'save_filter', 'terminate_filter',
                   'picked_instances', 'saved_instances',
                   'skipped_instances', 'terminated_instances',
-                  'log_entries'
+                  'log_entries', 'state_changed',
                   #, 'url')
                   )
         immutable_fields = ('account',)

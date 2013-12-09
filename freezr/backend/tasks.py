@@ -268,8 +268,8 @@ def log_result(self, result, task=None):
 @app.task(bind=True)
 @retry
 def reissue_operations(self):
-    for project in Project.objects.filter(state='freezing'):
+    for project in Project.objects.filter(state_actual='freezing'):
         dispatch(freeze_project.si(project.id))
 
-    for project in Project.objects.filter(state='thawing'):
+    for project in Project.objects.filter(state_actual='thawing'):
         dispatch(thaw_project.si(project.id))

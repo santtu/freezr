@@ -1,16 +1,16 @@
-/* freezr.css */
+// -*- mode: css; tab-width: 2; indent-tabs-mode: nil -*-
 body {
-  padding-top: 50px;
+    padding-top: 50px;
 }
 
 .starter-template {
-  padding: 40px 15px;
-  text-align: center;
+    padding: 40px 15px;
+    text-align: center;
 }
 
 #content {
-  padding: 0px 30px;
-  text-align: left;
+    padding: 0px 30px;
+    text-align: left;
 }
 
 #project-edit-view {
@@ -22,69 +22,69 @@ body {
     padding-bottom: 5px;
 
     &.project-list-last {
-	border-bottom: 2px solid lightgray;
+        border-bottom: 2px solid lightgray;
     }
 
     border-top: 2px solid lightgray;
 
     .no-left-gutter-row > .row > div {
-	padding-left: 0;
+        padding-left: 0;
     }
 
     .no-left-gutter {
-	padding-left: 0px;
+        padding-left: 0px;
     }
 }
 
 .project-status {
     .project-action-thaw {
-	&.open {
-	    > a {
-		background: orange;
+        &.open {
+            > a {
+                background: orange;
 
-		&:before {
-		    content: "Thaw for .." !important;
-		}
-	    }
-	}
+                &:before {
+                    content: "Thaw for .." !important;
+                }
+            }
+        }
 
-	> a {
-	    background: lightblue;
+        > a {
+            background: lightblue;
 
-	    &:before {
-		content: "Frozen";
-	    }
+            &:before {
+                content: "Frozen";
+            }
 
-	    &:hover {
-		&:before {
-		    content: "Thaw";
-		}
-		background: orange;
-	    }
-	}
+            &:hover {
+                &:before {
+                    content: "Thaw";
+                }
+                background: orange;
+            }
+        }
     }
 
     .project-action-freeze {
-	> a {
-	    background: green;
+        > a {
+            background: green;
 
-	    &:before {
-		content: "Running";
-	    }
+            &:before {
+                content: "Running";
+            }
 
-	    &:hover {
-		&:before {
-		    content: "Freeze";
-		}
-		background: orange;
-	    }
-	}
+            &:hover {
+                &:before {
+                    content: "Freeze";
+                }
+                background: orange;
+            }
+        }
     }
 }
 
-.project-actions {
+.project-actions, .projects-actions {
     button {
-	margin-bottom: 5px;
+        margin-bottom: 5px;
     }
 }
 
@@ -93,11 +93,11 @@ body {
 }
 
 .rounded-corners (@radius: 5px) {
-  -webkit-border-radius: @radius;
-  -moz-border-radius: @radius;
-  -ms-border-radius: @radius;
-  -o-border-radius: @radius;
-  border-radius: @radius;
+    -webkit-border-radius: @radius;
+    -moz-border-radius: @radius;
+    -ms-border-radius: @radius;
+    -o-border-radius: @radius;
+    border-radius: @radius;
 }
 
 .project-info-details {
@@ -121,4 +121,54 @@ footer {
     left: 0;
     z-index: 1;
     text-align: right;
+}
+
+/* adapted from http://jsfiddle.net/AndrewDryga/zcX4h/1/ */
+.spinner {
+    display: inline-block;
+    opacity: 0;
+    width: 0;
+
+    -webkit-transition: opacity 0.25s, width 0.25s;
+    -moz-transition: opacity 0.25s, width 0.25s;
+    -o-transition: opacity 0.25s, width 0.25s;
+    transition: opacity 0.25s, width 0.25s;
+}
+
+/* .rotating { */
+/*     animation-name: rotateThis; */
+/*     animation-duration: .5s; */
+/*     animation-iteration-count: infinite; */
+/*     animation-timing-function: linear; */
+/*     color: red; */
+/* } */
+
+/* @keyframes rotateThis { */
+/*     from { transform: scale(1) rotate(0deg); color: red; } */
+/*     to { transform: scale(1) rotate(360deg); color: blue; } */
+/* } */
+
+
+@-webkit-keyframes rotate {
+    from { -webkit-transform: scale(1) rotate(0deg); }
+    to   { -webkit-transform: scale(1) rotate(360deg); }
+}
+
+@keyframes rotate {
+    from { -transform: scale(1) rotate(0deg); }
+    to   { -transform: scale(1) rotate(360deg); }
+}
+
+.animation {
+    animation: rotate 2s infinite linear;
+    -webkit-animation: rotate 2s infinite linear;
+}
+
+.operation-in-progress {
+    -webkit-animation-name: pulse;
+    -webkit-animation-iteration-count: infinite;
+    animation-name: pulse;
+    animation-iteration-count: infinite;
+    /* -webkit-animation-name: 5s shake infinite linear; */
+    /* animation-name: shake 5s infinite linear; */
 }

@@ -78,7 +78,7 @@ Handlebars.registerHelper 'timeSince', (property, options) ->
     parts.push "" + Math.floor(delta) + " minutes"
 
   if parts.length == 0
-    return "just now"
+    return "only a while"
 
   return parts.join(", ")
 
@@ -96,6 +96,22 @@ window.App = App = Ember.Application.create
   LOG_VIEW_LOOKUPS: true
   LOG_BINDINGS: true
   LOG_ACTIVE_GENERATION: true
+
+# modeled from https://github.com/jgwhite/ember-time
+App.FromNowView = Ember.View.extend
+  nextTick: null
+  tagName: 'time'
+  template: Ember.Handlebars.compile '{{view.output}}'
+  output: (() -> (moment @get('value')).fromNow(true)).property('value')
+  tick: () ->
+    @nextTick = Ember.run.later this, (() ->
+      @notifyPropertyChange('value')
+      @tick()), 1000
+  willDestroyElement: () ->
+    Ember.run.cancel @nextTick
+  didInsertElement: () -> @tick()
+
+Handlebars.registerHelper 'fromNow', App.FromNowView
 
 Ember.RSVP.configure 'onerror', (error) ->
     Ember.Logger.assert(false, error)
@@ -194,10 +210,29 @@ App.Project = DS.Model.extend
   regions: DS.attr('array')
   isRunning: (() -> (@get 'state') == 'running').property('state')
   isFrozen: (() -> (@get 'state') == 'frozen').property('state')
+  isFreezing: (() -> (@get 'state') == 'freezing').property('state')
+  isThawing: (() -> (@get 'state') == 'thawing').property('state')
   canChange: (() -> (@get 'state') in ['running', 'frozen', 'error']).property('state')
   canFreeze: (() -> (@get 'isRunning')).property('state')
   canThaw: (() -> (@get 'isFrozen')).property('state')
   cannotChange: (() -> not (@get 'canChange')).property('state')
+
+  @currentTransientStateReloader = null
+
+  transientStateReload: (() ->
+    console?.log @toString(), "state", @get('state'), "when", @get('stateChanged')
+    if @currentTransientStateReloader?
+      Ember.run.cancel @currentTransientStateReloader
+      @currentTransientStateReloader = null
+
+    if not (@get('state') in ['running', 'frozen'])
+      console?.log "scheduling reload later, canceling any existing"
+
+      @currentTransientStateReloader = \
+        Ember.run.later this, (() ->
+          console?.log "triggering reload"
+          @reload()), 5000
+    ).observes('state', 'stateChanged').on('didLoad')
 
 App.Instance = DS.Model.extend
   instanceId: DS.attr('string')
@@ -318,25 +353,76 @@ App.ProjectsController = Ember.Controller.extend {}
 App.ProjectController = Ember.ObjectController.extend {}
 
 App.ProjectsIndexView = Ember.View.extend
-  actionsVisible: false
+  actionsVisible: true
   actions:
     expand: () -> @set('actionsVisible', true)
     collapse: () -> @set('actionsVisible', false)
 
 App.ProjectsIndexController = Ember.ObjectController.extend
+  refreshingAll: false
+  refreshingCount: 0
+  refreshCount: (delta) ->
+    if delta?
+      @refreshingCount += delta
+    console?.log "count", @refreshingCount
+    if @refreshingCount == 0
+      @set('refreshingAll', false)
+    else
+      @set('refreshingAll', true)
+
+  operate: (project, operation) ->
+      $.ajax
+        url: '/api/project/' + project.id + '/' + operation + '/'
+        type: 'POST'
+
+        fail: () =>
+          console?.log "operation fail", arguments
+
+        success: (payload) =>
+          console?.log "operation success", arguments
+          project.reload()
+
   actions:
-    thaw: () ->
+    thaw: (project) ->
       console?.log "thaw", arguments
-    freeze: () ->
+      @operate project, 'thaw'
+
+    freeze: (project) ->
       console?.log "freeze", arguments
-    edit: () ->
+      @operate project, 'freeze'
+
+    edit: (project) ->
       console?.log "edit", arguments
-    refresh: () ->
-      console?.log "refresh", arguments
-    deactivate: () ->
+
+    refresh: (project) ->
+      project.reload()
+
+    refreshAll: () ->
+      modelNames = ['domain', 'account', 'project', 'instance']
+
+      # We count model classes themselves to the refresh count. This
+      # ensures that @refreshingCount > 0 until *all* models have been
+      # found (.find).
+
+      @refreshCount modelNames.length
+      @set 'refreshingAll', true
+
+      for modelName in modelNames
+        do (modelName) =>
+          @store.find(modelName).then (objs) =>
+            objs = objs.toArray()
+            @refreshCount objs.length
+            for obj in objs
+              obj.reload().then () =>
+                @refreshCount -1
+            @refreshCount -1
+
+    deactivate: (project) ->
       console?.log "deactivate", arguments
+
     create: () ->
       console?.log "create", arguments
+
 
 App.ProjectsProjectView = Ember.View.extend
   templateName: 'projects-project'

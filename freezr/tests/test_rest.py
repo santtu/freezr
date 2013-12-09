@@ -152,7 +152,7 @@ class TestREST(test.APITestCase):
                                'save_filter', 'terminate_filter',
                                'picked_instances', 'saved_instances',
                                'terminated_instances', 'skipped_instances',
-                               'log_entries'))
+                               'log_entries', 'state_changed'))
 
     def testGetProject(self):
         response = self.client.get(reverse('project-detail', args=[1]))
@@ -178,7 +178,10 @@ class TestREST(test.APITestCase):
                           'saved_instances': [1],
                           'skipped_instances': [],
                           'terminated_instances': [2],
-                          'log_entries': []})
+                          'log_entries': [],
+                          'state_changed': datetime(
+                    2013, 12, 2, 12, 12, 12, tzinfo=pytz.utc)
+                          })
         response = self.client.get(reverse('project-detail', args=[2]))
         self.assertSimilar(response.data,
                          {'id': 2,
@@ -202,8 +205,10 @@ class TestREST(test.APITestCase):
                           'saved_instances': [5, 3],
                           'skipped_instances': [],
                           'terminated_instances': [],
-
-                          'log_entries': []})
+                          'log_entries': [],
+                          'state_changed': datetime(
+                    2013, 12, 2, 12, 12, 12, tzinfo=pytz.utc)
+                          })
 
     # Note that this absolutely requires that you either have set up a
     # testing celery with the same test database as this test is using
