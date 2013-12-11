@@ -152,7 +152,7 @@ class TestREST(test.APITestCase):
                                'save_filter', 'terminate_filter',
                                'picked_instances', 'saved_instances',
                                'terminated_instances', 'skipped_instances',
-                               'log_entries', 'state_changed'))
+                               'log_entries', 'state_updated'))
 
     def testGetProject(self):
         response = self.client.get(reverse('project-detail', args=[1]))
@@ -179,7 +179,7 @@ class TestREST(test.APITestCase):
                           'skipped_instances': [],
                           'terminated_instances': [2],
                           'log_entries': [],
-                          'state_changed': datetime(
+                          'state_updated': datetime(
                     2013, 12, 2, 12, 12, 12, tzinfo=pytz.utc)
                           })
         response = self.client.get(reverse('project-detail', args=[2]))
@@ -206,7 +206,7 @@ class TestREST(test.APITestCase):
                           'skipped_instances': [],
                           'terminated_instances': [],
                           'log_entries': [],
-                          'state_changed': datetime(
+                          'state_updated': datetime(
                     2013, 12, 2, 12, 12, 12, tzinfo=pytz.utc)
                           })
 

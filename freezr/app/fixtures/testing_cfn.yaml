@@ -158,12 +158,12 @@
   pk: 6
 - fields: {regions_actual: us-east-1, account: 1, description: '', name: Project in public
       network, pick_filter: 'tag[freezrtest] and tag[service] = public', save_filter: 'tag[role]
-      = ci', state_actual: running, terminate_filter: 'tag[role] = slave', state_changed: '2013-12-01T12:00:00+00:00'}
+      = ci', state_actual: running, terminate_filter: 'tag[role] = slave', state_updated: '2013-12-01T12:00:00+00:00'}
   model: core.project
   pk: 1
 - fields: {regions_actual: us-east-1, account: 1, description: '', name: Project in VPC,
     pick_filter: 'tag[freezrtest] and tag[service] = "vpc"', save_filter: 'tag[role]
-      = ci', state_actual: running, terminate_filter: 'tag[role] = slave', state_changed: '2013-12-01T12:00:00+00:00'}
+      = ci', state_actual: running, terminate_filter: 'tag[role] = slave', state_updated: '2013-12-01T12:00:00+00:00'}
   model: core.project
   pk: 2
 - fields: {active: true, description: '', domain: freezr.test.local, name: Freezr

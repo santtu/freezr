@@ -105,7 +105,7 @@ App.FromNowView = Ember.View.extend
   output: (() -> (moment @get('value')).fromNow(true)).property('value')
   tick: () ->
     @nextTick = Ember.run.later this, (() ->
-      @notifyPropertyChange('value')
+      @notifyPropertyChange('output')
       @tick()), 1000
   willDestroyElement: () ->
     Ember.run.cancel @nextTick
@@ -123,27 +123,13 @@ App.register 'transform:map', Transforms.map
 
 App.FreezrSerializer = DS.RESTSerializer.extend
   extractSingle: (store, type, payload) ->
+    normalized = @normalizePayload type, payload
     serializer = store.serializerFor(type)
-    return serializer.normalize(type, payload, type.typeKey)
+    ret = serializer.normalize(type, normalized, type.typeKey)
+    return ret
 
   extractArray: (store, type, payload) ->
-    try
-      payload = @normalizePayload type, payload
-      serializer = store.serializerFor(type)
-
-      array = (serializer.normalize(type, elt, type.typeKey) \
-        for elt in payload)
-
-      return array
-    catch error
-      console?.log "error", error
-      return []
-
-  normalizeRelationships: (type, payload) ->
-    #console?.log "normalizeRelationships: type", type, "payload", JSON.stringify(payload)
-    ret = @_super type, payload
-    #console?.log "=>", ret
-    ret
+    return (@extractSingle(store, type, elt) for elt in payload)
 
   attributeKeys:
     'storageType': 'store'
@@ -151,22 +137,19 @@ App.FreezrSerializer = DS.RESTSerializer.extend
   # Can't use "store" as key in model, it conflicts with Ember's own
   # .store field. Rename from JSON response 'store' to 'storageType'
   # field. Also, decamelize keys otherwise.
-  keyForAttribute: (attr) ->
+  keyFor: (attr) ->
     if attr of @attributeKeys
       return @attributeKeys[attr]
     Ember.String.decamelize(attr)
 
-  keyForRelationship: (attr, relationship) ->
-    if attr of @attributeKeys
-      return @attributeKeys[attr]
-    Ember.String.decamelize(attr)
+  keyForAttribute: (attr) -> @keyFor(attr)
+  keyForRelationship: (attr, relationship) -> @keyFor(attr)
 
 App.FreezrAdapter = DS.RESTAdapter.extend
   serializer: new App.FreezrSerializer()
   defaultSerializer: "App/Freezr"
 
   pathForType: (type) ->
-    #console?.log "pathForType: type", type
     return type
 
 App.reopen
@@ -206,7 +189,8 @@ App.Project = DS.Model.extend
   savedInstances: DS.hasMany('instance')
   terminatedInstances: DS.hasMany('instance')
   skippedInstances: DS.hasMany('instance')
-  stateChanged: DS.attr('date')
+  stateUpdated: DS.attr('date')
+#  stateUpdated: DS.attr('string')
   regions: DS.attr('array')
   isRunning: (() -> (@get 'state') == 'running').property('state')
   isFrozen: (() -> (@get 'state') == 'frozen').property('state')
@@ -217,22 +201,26 @@ App.Project = DS.Model.extend
   canThaw: (() -> (@get 'isFrozen')).property('state')
   cannotChange: (() -> not (@get 'canChange')).property('state')
 
-  @currentTransientStateReloader = null
+  currentTransientStateReloader: null
 
   transientStateReload: (() ->
-    console?.log @toString(), "state", @get('state'), "when", @get('stateChanged')
+    console?.log @toString(), "state", @get('state'), "when", @get('stateUpdated'), "otherwhen", @store.getById('project', @get('id')).get('stateUpdated')
     if @currentTransientStateReloader?
       Ember.run.cancel @currentTransientStateReloader
       @currentTransientStateReloader = null
 
     if not (@get('state') in ['running', 'frozen'])
-      console?.log "scheduling reload later, canceling any existing"
-
       @currentTransientStateReloader = \
         Ember.run.later this, (() ->
           console?.log "triggering reload"
           @reload()), 5000
-    ).observes('state', 'stateChanged').on('didLoad')
+    ).observes('state', 'stateUpdated').on('didLoad')
+
+  printstate: ((obj, key) ->
+    console?.log "state:", @get('state'), "stateUpdated", @get('stateUpdated'), "obj", obj, "key", key
+    console?.log "obj.get(stateUpdated)", obj.get('stateUpdated')
+    console?.log "obj.get(state)", obj.get('state')
+  ).observes('state', 'stateUpdated')
 
 App.Instance = DS.Model.extend
   instanceId: DS.attr('string')
@@ -284,7 +272,7 @@ App.Project.FIXTURES = [
     savedInstances: [2]
     terminatedInstances: [1]
     skippedInstances: []
-    stateChanged: '2013-12-05T20:47:20+02:00'
+    stateUpdated: '2013-12-05T20:47:20+02:00'
     regions: ['us-east-1', 'us-west-1']
   },
   {
@@ -301,7 +289,7 @@ App.Project.FIXTURES = [
     savedInstances: [3]
     terminatedInstances: []
     skippedInstances: []
-    stateChanged: '2013-11-01T00:00:00+02:00'
+    stateUpdated: '2013-11-01T00:00:00+02:00'
     regions: ['us-east-1', 'us-west-1']
   }]
 
@@ -413,6 +401,7 @@ App.ProjectsIndexController = Ember.ObjectController.extend
             objs = objs.toArray()
             @refreshCount objs.length
             for obj in objs
+              # TODO: does this handle errors too?
               obj.reload().then () =>
                 @refreshCount -1
             @refreshCount -1

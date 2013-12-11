@@ -142,7 +142,7 @@ class ProjectSerializer(util.Logger, ImmutableMixin,
 
     log_entries = LogEntrySerializer(many=True, read_only=True)
 
-    state_changed = serializers.Field()
+    state_updated = serializers.Field()
 
     # Change this into read-only field later .. useful for debugging
     # to be able to write this directly, though.
@@ -238,7 +238,7 @@ class ProjectSerializer(util.Logger, ImmutableMixin,
                   'pick_filter', 'save_filter', 'terminate_filter',
                   'picked_instances', 'saved_instances',
                   'skipped_instances', 'terminated_instances',
-                  'log_entries', 'state_changed',
+                  'log_entries', 'state_updated',
                   #, 'url')
                   )
         immutable_fields = ('account',)

@@ -406,14 +406,14 @@ class Project(BaseModel):
                        self.state_actual, value)
 
         if value != self.state_actual:
-            self.state_changed = timezone.now()
+            self.state_updated = timezone.now()
 
         self.state_actual = value
 
     def save_state(self, new_state):
         if self.state != new_state:
             self.state = new_state
-            self.save(update_fields=['state_actual', 'state_changed'])
+            self.save(update_fields=['state_actual', 'state_updated'])
 
     # Always in a domain, utilizing one account (but multiple projects
     # may use the same account). Note that the domain is implicit, via
@@ -421,7 +421,7 @@ class Project(BaseModel):
     account = models.ForeignKey('Account', related_name='projects')
 
     # When was the last state change for this project.
-    state_changed = models.DateTimeField(auto_now_add=True)
+    state_updated = models.DateTimeField(auto_now_add=True)
 
     @property
     def domain(self):

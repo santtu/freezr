@@ -38,7 +38,7 @@
     terminate_filter: 'tag[terminate]'
     account: 1
     regions_actual: 'us-east-1,ap-northeast-1,sa-east-1,ap-southeast-1,ap-southeast-2,us-west-2,us-west-1,eu-west-1'
-    state_changed: '2013-12-02 12:12:12+00:00'
+    state_updated: '2013-12-02 12:12:12+00:00'
 - model: core.project
   pk: 2
   fields:
@@ -47,7 +47,7 @@
     save_filter: 'true'
     account: 3
     regions_actual: 'us-east-1,ap-northeast-1,sa-east-1,ap-southeast-1,ap-southeast-2,us-west-2,us-west-1,eu-west-1'
-    state_changed: '2013-12-02 12:12:12+00:00'
+    state_updated: '2013-12-02 12:12:12+00:00'
 - model: core.logentry
   pk: 1
   fields:

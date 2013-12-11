@@ -154,8 +154,8 @@
 	    {{/if}}
 	    {{/if}}
 	    {{/if}}
-	    <small>for {{view "App.FromNowView" valueBinding="stateChanged"}}</small>
-	    ({{stateChanged}})
+	    for {{view "App.FromNowView" valueBinding="stateUpdated"}}
+	    {{!-- <br><span style="font-size: 80%">({{stateUpdated}})</span> --}}
 	  </div>
 	</div>
 	<div {{bind-attr class=":col-sm-2 :project-actions :project-expander parentView.actionsVisible::hidden"}}>
@@ -261,7 +261,7 @@
       <ol id="projects-list">
 	{{#each projects}}
 	<li>{{id}} | {{name}} | {{state}} ({{timeSince
-	  stateChanged}}) [{{timeSince account.updated}}]</li>
+	  stateUpdated}}) [{{timeSince account.updated}}]</li>
 	{{/each}}
       </ol>
 
