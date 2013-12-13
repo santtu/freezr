@@ -12,7 +12,7 @@ class Logger(object):
         self.log = logging.getLogger(self.__module__ + "." + self.__class__.__name__)
 
 def _log_error_for(obj_class, pk_field, func, args, kwargs):
-    from freezr.models import LogEntry
+    from freezr.core.models import LogEntry
 
     # Helper to extract value for parameter `arg_name` or return the
     # given default, if not found.
@@ -130,7 +130,7 @@ def log_error(obj_class, pk_field='pk'):
                     print("Bloody double exception from _log_error_for: {0}".format(format_exc()))
 
                 logging.getLogger('freezr.util').exception('log_error captured exception in view action')
-
+                raise
         return wrapper
     return wrapping
 
