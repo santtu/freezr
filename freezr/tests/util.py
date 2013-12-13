@@ -39,6 +39,25 @@ class AwsMock(object):
         log.debug('AwsMock.terminate_instance: instance=%r', instance)
         self.calls.append(('terminate_instance', instance))
 
+class ImmediateAwsMock(AwsMock):
+    """Version of AwsMock that will freeze and thaw instances
+    immediately."""
+
+    def freeze_instance(self, instance):
+        super(ImmediateAwsMock, self).freeze_instance(instance)
+        instance.state = 'stopped'
+        instance.save()
+
+    def thaw_instance(self, instance):
+        super(ImmediateAwsMock, self).thaw_instance(instance)
+        instance.state = 'running'
+        instance.save()
+
+    def terminate_instance(self, instance):
+        super(ImmediateAwsMock, self).terminate_instance(instance)
+        instance.state = 'terminated'
+        instance.save()
+
 class AwsMockFactory(object):
     def __init__(self, cls=AwsMock, obj=None):
         self.cls = cls

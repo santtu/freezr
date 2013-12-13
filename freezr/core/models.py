@@ -335,6 +335,9 @@ class Instance(BaseModel):
     def __unicode__(self):
         return self.instance_id
 
+    def __repr__(self):
+        return "%s:%s/%s" % (self.id, self.instance_id, self.state)
+
     def new_tag(self, **kwargs):
         """Create a new tag under this instance."""
         return InstanceTag(instance=self, **kwargs)
@@ -562,17 +565,16 @@ class Project(BaseModel):
 
         # TODO: EIP information storage
 
-        self.save_state('frozen')
-
-        elapsed = timezone.now() - started
-
-        self.log_entry('Froze project, terminated %d instances, '
-                       'stopped %d instances in %.2f seconds' % (
+        self.log_entry('Freezing project, terminating %d instances, '
+                       'stopping %d instances' % (
                 len(terminate_instances),
-                len(save_instances),
-                elapsed.seconds + elapsed.microseconds / 1e6))
+                len(save_instances)))
 
         self.account.log_entry('Froze project %s' % (self,))
+
+        # Do an immediate check, it is possible that `aws` has changed
+        # instance states even during the call.
+        self.refresh()
 
     def thaw(self, aws):
         if self.state not in ('frozen', 'thawing'):
@@ -580,30 +582,65 @@ class Project(BaseModel):
 
         self.log_entry('Thawing project')
 
-        # Don't thaw instances that are actually running. User might
-        # have added those manually to the environment after freeze.
-        saved_instances = [i for i in self.saved_instances if i.state == 'stopped']
-
-        self.log.debug("Thawing project %s, instances to be saved: %r",
-                       self, saved_instances)
-
-        started = timezone.now()
+        self.log.debug("Thawing project %s, instances: %r",
+                       self, self.saved_instances)
 
         self.save_state('thawing')
 
-        for instance in saved_instances:
+        saved_instances = []
+
+        for instance in self.saved_instances:
+            # Don't thaw instances that are actually running. User might
+            # have added those manually to the environment after freeze.
+            if instance.state != 'stopped':
+                continue
+
             self.log_entry('Thawing instance {0}'.format(instance))
             aws.thaw_instance(instance)
+            saved_instances.append(instance)
 
-        self.save_state('running')
-
-        elapsed = timezone.now() - started
-
-        self.log_entry('Thawed project, started %d instances in %.2f seconds' % (
-                len(saved_instances),
-                elapsed.seconds + elapsed.microseconds / 1e6))
+        self.log_entry('Thawing project, starting %d instances' % (
+                len(saved_instances)))
 
         self.account.log_entry('Thawed project %s' % (self,))
+
+        # Do an immediate check, it is possible that `aws` has changed
+        # instance states even during the call.
+        self.refresh()
+
+    def refresh(self):
+        """Refresh project state. Calling this is useful only if the
+        project is in a transitioning state, in which case it will
+        check if it can change to a final state.
+
+        E.g. if 'freezing', will move to 'frozen' if terminated
+        instances have been terminated and saved ones
+        stopped. Similarly for 'thawing'."""
+
+        def seconds():
+            delta = timezone.now() - self.state_updated
+            return delta.seconds + delta.microseconds / 1e6
+
+        self.log.debug("refresh: state=%r, saved=%r, terminated=%r",
+                       self.state,
+                       self.saved_instances, self.terminated_instances)
+
+        # IMPORTANT! Although refresh_account *will* remove terminated
+        # instances from the database, it is possible that the
+        # *project aws updater* has changed instance states -- it is
+        # not allowed to actually delete instances so "terminated" can
+        # pop up in here (in rare cases).
+
+        if (self.state == 'freezing' and
+            all(i.state == 'terminated' for i in self.terminated_instances) and
+            all(i.state == 'stopped' for i in self.saved_instances)):
+            self.log_entry('Project frozen (%.1fs elapsed)' % (seconds()))
+            self.save_state('frozen')
+
+        if (self.state == 'thawing' and
+            all(i.state == 'running' for i in self.saved_instances)):
+            self.log_entry('Project thawed (%.1fs elapsed)' % (seconds()))
+            self.save_state('running')
 
     class Meta:
         permissions = (

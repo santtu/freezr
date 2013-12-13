@@ -85,11 +85,17 @@ class NonDestructiveTests(Mixin, unittest.TestCase):
                 self.freeze_project(project)
                 self.until_project_in_state(project, ('frozen',))
 
-                # validate that all instances are still running and
-                # none has been terminated or stopped or in any other
-                # non-running state
-                self.until_instances_in_state(running=4, stopped=2)
-                #self.assertInstanceStates(running=4, stopped=2) #tautology
+                # All instances should be in their final state,
+                # frozen, running or terminated at this
+                # point. 'freezing' should not turn into 'frozen'
+                # until the operation is complete.
+                self.assertInstanceStates(running=4, stopped=2)
+
+                # # validate that all instances are still running and
+                # # none has been terminated or stopped or in any other
+                # # non-running state
+                # self.until_instances_in_state(running=4, stopped=2)
+                # #self.assertInstanceStates(running=4, stopped=2) #tautology
             finally:
                 self.restore_project(project)
 
@@ -102,7 +108,8 @@ class NonDestructiveTests(Mixin, unittest.TestCase):
             self.thaw_project(project)
 
         self.until_project_in_state(project, ('running',))
-        self.until_instances_in_state(running=6)
+        self.assertInstanceStates(running=6)
+        #self.until_instances_in_state(running=6)
 
     def freeze_project(self, project):
         r = self.client.post(project + "freeze/")
@@ -125,7 +132,8 @@ class NonDestructiveTests(Mixin, unittest.TestCase):
 
                 self.freeze_project(project)
                 self.until_project_in_state(project, ('frozen',))
-                self.until_instances_in_state(running=5, stopped=1)
+                self.assertInstanceStates(running=5, stopped=1)
+                #self.until_instances_in_state(running=5, stopped=1)
             finally:
                 self.restore_project(project)
 

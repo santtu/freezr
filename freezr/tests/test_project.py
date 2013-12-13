@@ -20,7 +20,8 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
                                access_key="1234",
                                secret_key="abcd")
         self.account.save()
-        self.project = self.account.new_project(name="test", state_actual='running')
+        self.project = self.account.new_project(name="test",
+                                                state_actual='running')
         self.project.save()
         self.id = 10000
         self.instances = []
@@ -150,13 +151,17 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
                     ('picked', len(picked), pick[1]),
                     ('saved', len(saved), save[1]),
                     ('terminated', len(terminated), terminate[1]),
-                    ('skipped', len(skipped), len(picked) - len(saved) - len(terminated))):
+                    ('skipped',
+                     len(skipped),
+                     (len(picked) - len(saved) - len(terminated)))
+                    ):
                     self.assertEqual(
                         expected, got,
                         "Filters pick=%r, save=%r, terminate=%r returned "
                         "unexpected number "
                         "of instances for %r filter: %d instead "
-                        "of expected %d):\npicked = %r\nsaved = %r\nterminated = %r\nskipped = %r" % (
+                        "of expected %d):\npicked = %r\nsaved = %r\n"
+                        "terminated = %r\nskipped = %r" % (
                             pick[0], save[0], terminate[0],
                             what, got, expected,
                             picked, saved, terminated, skipped))
@@ -214,12 +219,14 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
             # termination, no matter what termination filter says
             (('true', 10), ('true', 10), ('true', 0)),
             (('true', 10), ('false', 0), ('true', 10)),
-            (('true', 10), ('tag[staging] or tag[devtest]', 5), ('tag[staging] or tag[devtest] or true', 5)),
+            (('true', 10),
+             ('tag[staging] or tag[devtest]', 5),
+             ('tag[staging] or tag[devtest] or true', 5)),
             )
 
     def testFreeze(self):
         self.createSet2()
-        aws = util.AwsMock()
+        aws = util.ImmediateAwsMock()
 
         def reset():
             self.project.state_actual = 'running'
@@ -254,7 +261,8 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
 
         self.assertState('frozen')
         self.assertEqual(len(aws.calls), 10)
-        self.assertEqualSet(ids(arg(aws.calls, 1)), [i.instance_id for i in Instance.objects.all()])
+        self.assertEqualSet(ids(arg(aws.calls, 1)),
+                            [i.instance_id for i in Instance.objects.all()])
 
         # Save staging, terminate devtest, ignore production.
         reset()
@@ -278,7 +286,7 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
 
     def testThaw(self):
         self.createSet2(override={'state': 'stopped'})
-        aws = util.AwsMock()
+        aws = util.ImmediateAwsMock()
 
         def reset():
             self.project.state = 'frozen'
@@ -305,6 +313,9 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
         self.assertState('running')
         self.assertEqual(len(aws.calls), 2)
         self.assertEqualSet(ids(arg(aws.calls, 1)), ('i-000001', 'i-000002'))
+        self.assertEqualSet([i.instance_id for i in Instance.objects.filter(state='running')], ('i-000001', 'i-000002'))
+
+        stopped_ids = [i.instance_id for i in Instance.objects.filter(state='stopped')]
 
         # Verify we can save all.
         reset()
@@ -312,11 +323,16 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
             self.project.thaw(aws=aws)
 
         self.assertState('running')
-        self.assertEqual(len(aws.calls), 10)
-        self.assertEqualSet(ids(arg(aws.calls, 1)), [i.instance_id for i in Instance.objects.all()])
+        self.assertEqual(len(aws.calls), 8)
+        self.assertEqualSet(ids(arg(aws.calls, 1)), stopped_ids)
 
         # Save staging, terminate devtest, ignore production.
         reset()
+        # move all to stopped, some of them were thawed previously
+        for i in Instance.objects.all():
+            i.state = 'stopped'
+            i.save()
+
         with self.instance_filters('true', 'tag[staging] or tag[devtest]'):
             self.project.thaw(aws=aws)
 
@@ -331,7 +347,7 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
                           u'i-000005': 'thaw_instance'})
 
     def testFreezeThaw(self):
-        aws = util.AwsMock()
+        aws = util.ImmediateAwsMock()
         self.assertState('running')
         self.project.freeze(aws)
         self.assertState('frozen')
@@ -341,7 +357,7 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
     def testRefreeze(self):
         # check that we can issue freeze on a project that has been
         # already marked for freezing
-        aws = util.AwsMock()
+        aws = util.ImmediateAwsMock()
 
         self.project.state = 'freezing'
         self.project.save()
@@ -351,7 +367,7 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
 
     def testRethaw(self):
         # same applies for thawing
-        aws = util.AwsMock()
+        aws = util.ImmediateAwsMock()
 
         self.project.state = 'thawing'
         self.project.save()

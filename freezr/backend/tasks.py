@@ -19,7 +19,8 @@ log = logging.getLogger('freezr.backend.tasks')
 STABLE_INSTANCE_STATES = ('running', 'stopped',
                             'terminated', 'shutting-down')
 REFRESH_INSTANCE_INTERVAL = 5
-
+STABLE_PROJECT_STATES = ('error', 'running', 'frozen')
+REFRESH_PROJECT_INTERVAL = 15
 ACCOUNT_UPDATE_INTERVAL = 3600 # 1 hour
 
 # Just a debug task, get rid of it later.
@@ -145,6 +146,21 @@ def refresh_account(self, pk, regions=None,
 
 @app.task(bind=True)
 @retry
+def refresh_project(self, pk):
+    try:
+        project = Project.objects.get(id=pk)
+    except Project.DoesNotExist:
+        log.error('Refresh Project : Unexistent project %d', pk)
+
+    project.refresh()
+
+    # If project in transient state, schedule refresh.
+    if project.state not in STABLE_PROJECT_STATES:
+        dispatch(refresh_project.si(project.id),
+                 countdown=REFRESH_PROJECT_INTERVAL)
+
+@app.task(bind=True)
+@retry
 def freeze_project(self, pk):
     try:
         project = Project.objects.get(id=pk)
@@ -157,6 +173,12 @@ def freeze_project(self, pk):
         return
 
     project.freeze(aws=aws.AwsInterface(project.account))
+
+    # Schedule project refresh to watch instance states until all have
+    # stabilised.
+    if project.state == 'freezing':
+        dispatch(refresh_project.si(project.id),
+                 countdown=REFRESH_PROJECT_INTERVAL)
 
 @app.task(bind=True)
 @retry
@@ -172,6 +194,10 @@ def thaw_project(self, pk):
         return
 
     project.thaw(aws=aws.AwsInterface(project.account))
+
+    if project.state == 'thawing':
+        dispatch(refresh_project.si(project.id),
+                 countdown=REFRESH_PROJECT_INTERVAL)
 
 # Note: We don't have project.account.active check on instance checks,
 # since refresh_instance cannot be directly triggered from outside, it

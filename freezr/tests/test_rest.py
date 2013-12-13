@@ -10,7 +10,7 @@ from rest_framework import status
 from itertools import chain
 from datetime import datetime
 import copy
-from .util import AwsMockFactory, with_aws
+from .util import AwsMockFactory, ImmediateAwsMock, with_aws
 from django.utils import timezone
 from datetime import timedelta
 import freezr.backend
@@ -216,7 +216,7 @@ class TestREST(test.APITestCase):
     # settings.
 
     def testRefreshAccount(self):
-        factory = AwsMockFactory()
+        factory = AwsMockFactory(ImmediateAwsMock)
         with with_aws(factory):
             log.debug("regions=%r", Account.objects.get(pk=1).regions)
 
@@ -227,7 +227,7 @@ class TestREST(test.APITestCase):
             self.assertEqual(len(factory.aws.calls), 8)
             self.assertNotEqual(Account.objects.get(pk=1).updated, old)
 
-            factory = AwsMockFactory()
+            factory = AwsMockFactory(ImmediateAwsMock)
             freezr.backend.aws.AwsInterface = factory
 
             old = Account.objects.get(pk=3).updated
@@ -241,7 +241,7 @@ class TestREST(test.APITestCase):
         self.account.active = False
         self.account.save()
 
-        factory = AwsMockFactory()
+        factory = AwsMockFactory(ImmediateAwsMock)
         with with_aws(factory):
             old = Account.objects.get(pk=1).updated
             response = self.client.post(reverse('account-refresh', args=[1]))
@@ -257,7 +257,7 @@ class TestREST(test.APITestCase):
     #     pass
 
     def testFreezeAccount(self):
-        factory = AwsMockFactory()
+        factory = AwsMockFactory(ImmediateAwsMock)
 
         # This should fail with 409 since the project is in init state
         with with_aws(factory):
@@ -306,7 +306,7 @@ class TestREST(test.APITestCase):
                 "refresh+freeze/terminate+refresh sequence" % (names,))
 
     def testThawAccount(self):
-        factory = AwsMockFactory()
+        factory = AwsMockFactory(ImmediateAwsMock)
 
         # This should fail with 409 since the project is in init state
         with with_aws(factory):

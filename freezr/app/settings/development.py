@@ -129,4 +129,6 @@ STATICFILES_DIRS = (
 
 FREEZR_API_ROOT = "/api"
 
-import freezr.backend.celery
+import os
+if 'DONT_IMPORT_CELERY' not in os.environ:
+    import freezr.backend.celery
