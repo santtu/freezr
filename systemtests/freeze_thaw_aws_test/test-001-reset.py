@@ -1,6 +1,7 @@
 import unittest
 import util
 
+
 class ResetEnvironment(util.Mixin, unittest.TestCase):
     def test01RemoveDomains(self):
         """001-01 Remove freezr resources from the system"""

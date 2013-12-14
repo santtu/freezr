@@ -2,6 +2,7 @@ from __future__ import absolute_import
 import unittest
 from . import util
 
+
 class ValidateAws(util.Mixin, unittest.TestCase):
     def test01AwsConnection(self):
         """000-01 Test we can access AWS account and there are instances"""

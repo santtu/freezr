@@ -1,10 +1,10 @@
 from django import test
 import logging
-from freezr.core.models import Account, Domain, Project, Instance, LogEntry
-from freezr.api.exceptions import LoggedException, log_save
-from django.db.models import Q
+from freezr.core.models import Account, Domain, LogEntry
+from freezr.api.exceptions import LoggedException
 
 log = logging.getLogger(__file__)
+
 
 class TestLogEntry(test.TestCase):
     def setUp(self):
@@ -16,7 +16,10 @@ class TestLogEntry(test.TestCase):
         self.account.save()
         self.project = self.account.new_project(name="test")
         self.project.save()
-        self.instance = self.account.new_instance(instance_id='i-12345', type='m1.small', region='us-east-1', state='running')
+        self.instance = self.account.new_instance(instance_id='i-12345',
+                                                  type='m1.small',
+                                                  region='us-east-1',
+                                                  state='running')
         self.instance.save()
 
     def testPlainLogging(self):
@@ -33,12 +36,15 @@ class TestLogEntry(test.TestCase):
         self.assertEqual(4, LogEntry.objects.count())
 
         self.assertEqual(1, self.domain.log_entries.count())
-        self.assertEqual(2, self.account.log_entries.count()) # instance goes here!
+        # instance goes here!
+        self.assertEqual(2, self.account.log_entries.count())
         self.assertEqual(1, self.project.log_entries.count())
 
         self.assertEqual('domain', self.domain.log_entries.all()[0].message)
         self.assertEqual('project', self.project.log_entries.all()[0].message)
-        self.assertEqual(set(['account', 'instance']), set([l.message for l in self.account.log_entries.all()]))
+        self.assertEqual(set(['account', 'instance']),
+                         set([l.message
+                              for l in self.account.log_entries.all()]))
 
         self.assertEqual(set(['info', 'exception', 'error', 'audit']),
                          set([l.type for l in LogEntry.objects.all()]))

@@ -1,8 +1,8 @@
-from freezr.core.models import LogEntry
 import traceback
 import logging
 
 log = logging.getLogger('freezr.exceptions')
+
 
 class LoggedException(Exception):
     """Base class for logged (to database) exception. Children of this
@@ -26,6 +26,7 @@ class LoggedException(Exception):
                            type='exception')
         self.saved = True
 
+
 class log_save(object):
     """with-statement addition that makes sure that if the exception
     seen is of type 'LoggedException' it will be saved. This *will*
@@ -35,8 +36,9 @@ class log_save(object):
         pass
 
     def __exit__(self, type, value, traceback):
-        if value is not Null and isinstance(value, LoggedException):
+        if value is not None and isinstance(value, LoggedException):
             try:
                 value.save()
             except:
-                log.exception('Got double exception while trying to save a LoggedException')
+                log.exception('Got double exception while trying to '
+                              'save a LoggedException')

@@ -5,9 +5,10 @@ from django import test
 from .util import AwsMockFactory, with_aws, AttrDict
 import freezr.backend.tasks as tasks
 from django.utils import timezone
-from datetime import timedelta, datetime
+from datetime import timedelta
 
 log = logging.getLogger(__file__)
+
 
 class instance_modifier(object):
     def __init__(self, **changes):
@@ -25,6 +26,7 @@ class instance_modifier(object):
             log.debug("%s = %r", k, getattr(instance, k))
 
         instance.save()
+
 
 class TestTasks(test.TestCase):
     def setUp(self):
@@ -79,8 +81,8 @@ class TestTasks(test.TestCase):
             after_count = self.account.log_entries.count()
 
             self.assertEqual(after_count, before_count + 1,
-                             'Log entries, expected %d, got %d' % (
-                    before_count + 1, after_count))
+                             'Log entries, expected %d, got %d' %
+                             (before_count + 1, after_count))
 
             entry = self.account.log_entries.latest('time')
             self.assertEqual(entry.type, 'error')
@@ -90,7 +92,9 @@ class TestTasks(test.TestCase):
             log.debug("%r - %r", entry.time, delta)
 
             self.assertLessEqual(delta.seconds, 1)
-            self.assertEqual(len(entry.details if entry.details else '') != 0, have_details)
+            self.assertEqual(len(entry.details
+                                 if entry.details else '') != 0,
+                             have_details)
             self.assertFalse(entry.system_error)
 
         case('pending', 'stopped', False)
@@ -145,7 +149,8 @@ class TestTasks(test.TestCase):
 
             # must refresh when updated = None
             with self.account_refresh() as proxy:
-                tasks.dispatch(tasks.refresh_account.si(id, older_than=1000000)).get()
+                tasks.dispatch(
+                    tasks.refresh_account.si(id, older_than=1000000)).get()
                 self.assertIsNotNone(proxy.updated)
                 self.assertIsNotNone(factory.aws)
                 factory.assertUsed()
@@ -156,16 +161,19 @@ class TestTasks(test.TestCase):
             # should NOT refresh
             with self.account_refresh(timezone.now()) as proxy:
                 now = proxy.updated
-                tasks.dispatch(tasks.refresh_account.si(id, older_than=1000000)).get()
+                tasks.dispatch(
+                    tasks.refresh_account.si(id, older_than=1000000)).get()
                 self.assertEqual(proxy.updated, now)
                 factory.assertNotUsed()
 
             factory.reset()
 
             # should refresh
-            with self.account_refresh(timezone.now() - timedelta(minutes=30)) as proxy:
+            with self.account_refresh(timezone.now()
+                                      - timedelta(minutes=30)) as proxy:
                 now = proxy.updated
-                tasks.dispatch(tasks.refresh_account.si(id, older_than=(29*60))).get()
+                tasks.dispatch(
+                    tasks.refresh_account.si(id, older_than=(29 * 60))).get()
                 self.assertNotEqual(proxy.updated, now)
                 factory.assertUsed()
                 factory.aws.assertCalled()
@@ -174,16 +182,21 @@ class TestTasks(test.TestCase):
 
             # should not refresh, there's a minimum 5 second enforced
             # separation
-            with self.account_refresh(timezone.now() - timedelta(seconds=2)) as proxy:
+            with self.account_refresh(timezone.now()
+                                      - timedelta(seconds=2)) as proxy:
                 now = proxy.updated
-                tasks.dispatch(tasks.refresh_account.si(id, older_than=0)).get()
+                tasks.dispatch(
+                    tasks.refresh_account.si(id, older_than=0)).get()
                 self.assertEqual(proxy.updated, now)
                 factory.assertNotUsed()
 
             # should refresh
-            with self.account_refresh(timezone.now() - timedelta(seconds=5)) as proxy:
+            with (self.account_refresh(
+                    timezone.now() - timedelta(seconds=5))) as proxy:
+
                 now = proxy.updated
-                tasks.dispatch(tasks.refresh_account.si(id, older_than=0)).get()
+                tasks.dispatch(
+                    tasks.refresh_account.si(id, older_than=0)).get()
                 self.assertNotEqual(proxy.updated, now)
                 factory.assertUsed()
                 factory.aws.assertCalled()
@@ -191,9 +204,11 @@ class TestTasks(test.TestCase):
             factory.reset()
 
             # should refresh, grossly incorrect (in the future) timestamp
-            with self.account_refresh(timezone.now() + timedelta(hours=10)) as proxy:
+            with (self.account_refresh(
+                    timezone.now() + timedelta(hours=10))) as proxy:
                 now = proxy.updated
-                tasks.dispatch(tasks.refresh_account.si(id, older_than=0)).get()
+                tasks.dispatch(
+                    tasks.refresh_account.si(id, older_than=0)).get()
                 self.assertNotEqual(proxy.updated, now)
                 factory.assertUsed()
                 factory.aws.assertCalled()

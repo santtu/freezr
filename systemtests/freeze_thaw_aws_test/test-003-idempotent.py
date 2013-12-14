@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import unittest
 import time
-from util import *
+from util import Mixin, FILTER_KEYS
+
 
 class IdempotentTests(Mixin, unittest.TestCase):
     """Only tests that are not destructive and actually would work
@@ -52,23 +53,23 @@ class IdempotentTests(Mixin, unittest.TestCase):
 
     def test01PublicProjectFilterManipulation(self):
         """003-01 Manipulate public project filters"""
-        self.caseFilterManipulation(self.project_public,
-                                    (2, 1, 1, 0),
-                                    (
-                (('false', None, None), (0, 0, 0, 0)),
-                ((True, 'false', 'false'), (2, 0, 0, 2)),
-                ((None, 'true', 'true'), (2, 2, 0, 0)),
-                ))
+        self.caseFilterManipulation(
+            self.project_public,
+            (2, 1, 1, 0),
+            ((('false', None, None), (0, 0, 0, 0)),
+             ((True, 'false', 'false'), (2, 0, 0, 2)),
+             ((None, 'true', 'true'), (2, 2, 0, 0)),
+             ))
 
     def test02VpcProjectFilterManipulation(self):
         """003-02 Manipulate vpc project filters"""
-        self.caseFilterManipulation(self.project_vpc,
-                                    (4, 1, 2, 1),
-                                    (
-                (('false', None, None), (0, 0, 0, 0)),
-                ((True, 'false', 'false'), (4, 0, 0, 4)),
-                ((None, 'true', 'true'), (4, 4, 0, 0)),
-                ))
+        self.caseFilterManipulation(
+            self.project_vpc,
+            (4, 1, 2, 1),
+            ((('false', None, None), (0, 0, 0, 0)),
+             ((True, 'false', 'false'), (4, 0, 0, 4)),
+             ((None, 'true', 'true'), (4, 4, 0, 0)),
+             ))
 
     def test03AccountUpdateWithoutSecret(self):
         """003-03 Account updates without secret key"""
@@ -165,7 +166,6 @@ class IdempotentTests(Mixin, unittest.TestCase):
         r = self.client.get(self.account)
         self.assertCode(r, 200)
         self.assertTrue(r.data['active'])
-        updated = r.data['updated']
 
         with self.resource_saver(self.account, self.cleanup(r.data)):
             r = self.client.patch(self.account, {'active': False})

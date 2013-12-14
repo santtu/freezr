@@ -4,7 +4,8 @@ from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 import freezr.common.util as util
 
 TERMINAL_STATES = ('shutting-down', 'terminated')
-DRY_RUN = False # really only for debugging
+DRY_RUN = False  # really only for debugging
+
 
 class AwsInterface(util.Logger):
     """This is the interface to AWS.
@@ -41,7 +42,9 @@ class AwsInterface(util.Logger):
         """Refreshes information on the given instance."""
         conn = self.connect_ec2(instance.region)
 
-        for instance_data in conn.get_only_instances(instance_ids=[instance.instance_id]):
+        for instance_data in conn.get_only_instances(instance_ids=[
+                instance.instance_id]):
+
             assert instance_data.id == instance.instance_id
             if instance_data.state not in TERMINAL_STATES:
                 self.update_instance_record(instance, instance_data)
@@ -59,7 +62,7 @@ class AwsInterface(util.Logger):
         record.vpc_id = instance.vpc_id
         record.store = instance.root_device_type
         record.type = instance.instance_type
-        record.aws_instance = instance # this is not persisted
+        record.aws_instance = instance  # this is not persisted
 
         # self.log.debug("instance data: %r", instance)
         # self.log.debug("instance data dir: %r", dir(instance))
@@ -92,7 +95,8 @@ class AwsInterface(util.Logger):
         added_instances = set()
 
         for instance in conn.get_only_instances():
-            self.log.debug("Got instance id %s: region=%s state=%s vpc_id=%s store=%s",
+            self.log.debug("Got instance id %s: region=%s state=%s "
+                           "vpc_id=%s store=%s",
                            instance.id, region,
                            instance.state, instance.vpc_id,
                            instance.root_device_type)
@@ -105,7 +109,7 @@ class AwsInterface(util.Logger):
 
             try:
                 record = account.instances.get(instance_id=instance.id,
-                                                region=region)
+                                               region=region)
             except ObjectDoesNotExist:
                 record = account.new_instance(instance_id=instance.id,
                                               region=region)
@@ -114,7 +118,7 @@ class AwsInterface(util.Logger):
                 # Ahem, this shouldn't be happening. We have bad
                 # records, make them go away.
                 account.instances.filter(instance_id=instance.id,
-                                          region=region).delete()
+                                         region=region).delete()
                 continue
 
             # Although none of these should change during lifetime of
@@ -165,7 +169,8 @@ class AwsInterface(util.Logger):
         for record in disappeared_instances:
             record.delete()
 
-        self.log.info("Updated account %s in region %s: #alive=%d #recorded=%d #added=%d #disappeared=%d",
+        self.log.info("Updated account %s in region %s: "
+                      "#alive=%d #recorded=%d #added=%d #disappeared=%d",
                       self, region,
                       len(seen_instances), len(recorded_instances),
                       len(added_instances), len(disappeared_instances))
@@ -206,7 +211,6 @@ class AwsInterface(util.Logger):
         result = conn.stop_instances(instance_ids=[instance.instance_id])
 
         self.log.debug("freeze_instance: %s => %s", instance, result)
-
 
     def thaw_instance(self, instance):
         """Thaw the given instance."""

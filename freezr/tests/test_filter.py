@@ -9,21 +9,21 @@ class TestFilter(unittest.TestCase):
 
     # These should fail, e.g. produce an exception
     FAIL = (
-        '$bad',			# invalid chars
-        'bnarf = bnarf',	# literals not valid lhs values
-        'foo und zing',		# invalid structure
-        'region[bad]',		# only tag[indice]
-        'tag[with space]',	# keys can have spaces, but not in literals
-        'tag[one] == bad',	# invalid op
-        'tag[one] <> bad',	# invalid op
-        'tag[one] > bad',	# invalid op, maybe in future
-        'tag[one] < bad',	# invalid op, maybe in future
-        'region and',		# premature end of input
-        '(region',		# ditto
-        '(region and (',	# ditto
-        '(region (region and region))', # invalid parenthesis
-        'region = (region or region)', # invalid rhs
-        '',			# empty input
+        '$bad',                 # invalid chars
+        'bnarf = bnarf',        # literals not valid lhs values
+        'foo und zing',         # invalid structure
+        'region[bad]',          # only tag[indice]
+        'tag[with space]',      # keys can have spaces, but not in literals
+        'tag[one] == bad',      # invalid op
+        'tag[one] <> bad',      # invalid op
+        'tag[one] > bad',       # invalid op, maybe in future
+        'tag[one] < bad',       # invalid op, maybe in future
+        'region and',           # premature end of input
+        '(region',              # ditto
+        '(region and (',        # ditto
+        '(region (region and region))',  # invalid parenthesis
+        'region = (region or region)',  # invalid rhs
+        '',                     # empty input
         )
 
     # These should succeed, and give the expected result (true or
@@ -98,8 +98,8 @@ class TestFilter(unittest.TestCase):
         'storage': 'ebs',
         'tags': {
             'class': 'test',
-            't': 'not empty', # evaluates to true boolean
-            'f': '', # evaluates to false
+            't': 'not empty',  # evaluates to true boolean
+            'f': '',  # evaluates to false
             'lit1': 'something',
             'lit2': 'something',
             'lit3': 'ebs',
@@ -113,13 +113,12 @@ class TestFilter(unittest.TestCase):
             try:
                 f = Filter.parse(text)
                 succeeded.append((text, f.format()))
-            except ParseException as ex:
+            except ParseException:
                 pass
 
         msg = ("Some failure cases succeeded in parsing:\n\n{0}"
-               .format("\n".join(
-                    map(lambda t: "\t{0:<20} => {1}".format(*t),
-                        succeeded))))
+               .format("\n".join(["\t{0:<20} => {1}"
+                                  .format(*t) for t in succeeded])))
 
         self.assertEqual(len(succeeded), 0, msg)
 
@@ -129,14 +128,13 @@ class TestFilter(unittest.TestCase):
         for case in self.SUCCESS:
             text = case[0]
             try:
-                f = Filter.parse(text)
+                Filter.parse(text)
             except ParseException as ex:
                 failed.append((text, str(ex)))
 
         msg = ("Some success cases failed in parsing:\n\n{0}"
-               .format("\n".join(
-                    map(lambda t: "\t{0:<20} => {1}".format(*t),
-                        failed))))
+               .format("\n".join(["\t{0:<20} => {1}".format(t[0], t[1])
+                                  for t in failed])))
 
         self.assertEqual(len(failed), 0, msg)
 
@@ -157,8 +155,7 @@ class TestFilter(unittest.TestCase):
                 failed.append((text, expected, result))
 
         msg = ("Some success cases failed in parsing:\n\n{0}"
-               .format("\n".join(
-                    map(lambda t: "\t{0:<20} expected {1} got {2}".format(*t),
-                        failed))))
+               .format("\n".join(["\t{0:<20} expected {1} got {2}"
+                                  .format(*t) for t in failed])))
 
         self.assertEqual(len(failed), 0, msg)

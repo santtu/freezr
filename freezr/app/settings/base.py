@@ -14,7 +14,7 @@ WSGI_APPLICATION = 'freezr.app.wsgi.application'
 ATOMIC_REQUESTS = True
 
 CELERY_IMPORTS = ('freezr.backend.celery', 'freezr.backend.tasks')
-CELERY_TASK_RESULT_EXPIRES = 600 # 10 minutes
+CELERY_TASK_RESULT_EXPIRES = 600  # 10 minutes
 CELERYBEAT_SCHEDULER = "djcelery.schedulers.DatabaseScheduler"
 CELERY_TASK_PUBLISH_RETRY = True
 CELERY_TRACK_STARTED = True

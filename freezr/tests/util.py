@@ -2,6 +2,7 @@ import logging
 
 log = logging.getLogger('freezr.tests.util')
 
+
 class AwsMock(object):
     def __init__(self, *args, **kwargs):
         self.args = args
@@ -18,7 +19,8 @@ class AwsMock(object):
         assert len(self.calls) > 0, "no calls to AWS mock"
 
     def assertNotCalled(self):
-        assert len(self.calls) == 0, "%d unexpected calls to AWS mock" % (len(self.calls),)
+        assert (len(self.calls) == 0,
+                "%d unexpected calls to AWS mock" % (len(self.calls),))
 
     def refresh_region(self, account, region):
         log.debug('AwsMock.refresh_region: account=%r region=%r',
@@ -39,6 +41,7 @@ class AwsMock(object):
         log.debug('AwsMock.terminate_instance: instance=%r', instance)
         self.calls.append(('terminate_instance', instance))
 
+
 class ImmediateAwsMock(AwsMock):
     """Version of AwsMock that will freeze and thaw instances
     immediately."""
@@ -57,6 +60,7 @@ class ImmediateAwsMock(AwsMock):
         super(ImmediateAwsMock, self).terminate_instance(instance)
         instance.state = 'terminated'
         instance.save()
+
 
 class AwsMockFactory(object):
     def __init__(self, cls=AwsMock, obj=None):
@@ -86,6 +90,7 @@ class AwsMockFactory(object):
 
     def assertUsed(self):
         assert self._aws is not None, "aws factory has not been used"
+
 
 class FreezrTestCaseMixin(object):
     _instance_id = 0
@@ -122,6 +127,7 @@ class FreezrTestCaseMixin(object):
     def assertEqualSet(self, list1, list2):
         self.assertSetEqual(set(list1), set(list2))
 
+
 def with_aws(aws):
     class inner(object):
         def __init__(self, aws):
@@ -138,6 +144,7 @@ def with_aws(aws):
             freezr.backend.aws.AwsInterface = self.old_aws
 
     return inner(aws)
+
 
 # from http://stackoverflow.com/a/14620633/779129
 class AttrDict(dict):

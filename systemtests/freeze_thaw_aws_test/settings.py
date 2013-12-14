@@ -3,10 +3,10 @@
 import os
 os.environ['DONT_IMPORT_CELERY'] = 'true'
 
-from freezr.app.settings.development import *
+from freezr.app.settings.development import *  # noqa
 
 BROKER_URL = 'amqp://guest@localhost/freezr_testing'
-CELERYBEAT_SCHEDULER = None #disable periodic tasks during testing
+CELERYBEAT_SCHEDULER = None  # disable periodic tasks during testing
 
 # move db to our location, not in src tree
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -44,4 +44,4 @@ LOGGING = {
         }
     }
 
-import freezr.backend.celery
+import freezr.backend.celery  # noqa

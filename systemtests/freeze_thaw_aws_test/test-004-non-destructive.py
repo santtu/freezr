@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import unittest
-import time
-from util import *
+from util import Mixin
+
 
 class NonDestructiveTests(Mixin, unittest.TestCase):
     """Only tests that are not destructive, e.g. are guaranteed to
@@ -13,14 +13,16 @@ class NonDestructiveTests(Mixin, unittest.TestCase):
 
     def assertFilterCounts(self, data, counts):
         for field, expected in zip(('picked_instances', 'saved_instances',
-                                    'terminated_instances', 'skipped_instances'),
+                                    'terminated_instances',
+                                    'skipped_instances'),
                                    counts):
             count = len(data[field])
             self.log.debug("%s %d <=> %d", field, count, expected)
             self.assertEqual(count, expected,
-                             'Filtered instance field "%s" value %r has length %d, '
-                             'expected %d instances' % (
-                    field, data[field], count, expected))
+                             'Filtered instance field "%s" value '
+                             '%r has length %d, '
+                             'expected %d instances' %
+                             (field, data[field], count, expected))
 
     def test01FreezeEmptyProjectAndRefreeze(self):
         """004-01 Freeze an empty project, attempt re-freeze"""
@@ -38,7 +40,7 @@ class NonDestructiveTests(Mixin, unittest.TestCase):
         with self.filter_saver(project) as data:
             self.assertEqual(data['state'], 'running')
             try:
-                r = self.client.patch(project, {'pick_filter':'false'})
+                r = self.client.patch(project, {'pick_filter': 'false'})
                 self.assertCode(r, 200)
                 # self.assertEqual(r.data['picked_instances'], [])
                 # self.assertEqual(r.data['terminated_instances'], [])

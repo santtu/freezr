@@ -1,17 +1,17 @@
 from __future__ import absolute_import
-from freezr.core.models import *
-from .serializers import *
-from freezr.backend.tasks import dispatch, refresh_account, freeze_project, thaw_project
+from freezr.core.models import Account, Domain, Project, Instance
+from .serializers import (AccountSerializer, DomainSerializer,
+                          InstanceSerializer, ProjectSerializer)
+from freezr.backend.tasks import (dispatch, refresh_account,
+                                  freeze_project, thaw_project)
 from django.http import Http404
-from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.exceptions import MethodNotAllowed
 from rest_framework import status
-from rest_framework import generics
-from rest_framework import viewsets, routers
+from rest_framework import viewsets
 import freezr.common.util as util
-import traceback
+
 
 class BaseViewSet(util.Logger, viewsets.ModelViewSet):
     def handle_exception(self, exc):
@@ -24,9 +24,11 @@ class BaseViewSet(util.Logger, viewsets.ModelViewSet):
 
         return super(BaseViewSet, self).handle_exception(exc)
 
+
 class DomainViewSet(BaseViewSet):
     model = Domain
     serializer_class = DomainSerializer
+
 
 class AccountViewSet(BaseViewSet):
     model = Account
@@ -55,10 +57,11 @@ class AccountViewSet(BaseViewSet):
         ret = super(AccountViewSet, self).post_save(obj, **kwargs)
 
         if obj.regions:
-            async = dispatch(refresh_account.si(obj.id, older_than=0),
-                             countdown=10)
+            dispatch(refresh_account.si(obj.id, older_than=0),
+                     countdown=10)
 
         return ret
+
 
 class ProjectViewSet(BaseViewSet):
     model = Project
@@ -101,17 +104,13 @@ class ProjectViewSet(BaseViewSet):
         # Do a forced refresh on the account just before freeze so we
         # have as up-to-date information as possible. (Freeze operates
         # based on our knowledge of the account.)
-        async = dispatch(
+        dispatch(
             (refresh_account.si(project.account.id, forced=True) |
              freeze_project.si(project.id) |
-             refresh_account.si(project.account.id, forced=True))
-            )
-
-        # self.log.debug("freeze: async=%r", async)
+             refresh_account.si(project.account.id, forced=True)))
 
         serializer = self.get_serializer(project)
         return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
-
 
     @action()
     @util.log_error(Project)
@@ -134,18 +133,14 @@ class ProjectViewSet(BaseViewSet):
 
         # Again, do a forced refresh before starting the thaw
         # operation.
-        async = dispatch(
+        dispatch(
             (refresh_account.si(project.account.id, forced=True) |
              thaw_project.si(project.id) |
-             refresh_account.si(project.account.id, forced=True))
-            )
+             refresh_account.si(project.account.id, forced=True)))
 
         serializer = self.get_serializer(project)
         return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
 
-        # return Response({'message': 'Project thawing started',
-        #                  'operation': async.id},
-        #                 status=status.HTTP_202_ACCEPTED)
 
 class InstanceViewSet(viewsets.ReadOnlyModelViewSet):
     model = Instance

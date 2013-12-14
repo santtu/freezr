@@ -8,6 +8,7 @@ from .util import AwsMock, FreezrTestCaseMixin
 
 log = logging.getLogger(__file__)
 
+
 class TestAccount(FreezrTestCaseMixin, test.TestCase):
     def setUp(self):
         self.domain = Domain(name="Test domain", domain=".test")
@@ -40,25 +41,29 @@ class TestAccount(FreezrTestCaseMixin, test.TestCase):
                 regions="a,b,c,d,e,f").save()
         self.assertEqual(6, len(self.account.regions))
 
-        time.sleep(0.01) # make sure some time passes, we're comparing timestamps
+        time.sleep(0.01)  # make sure some time passes, we're
+                          # comparing timestamps
         self.account.refresh(aws=self.aws)
         self.assertEqual(6, len(self.aws.calls))
         self.assertTrue(all([c[1] == self.account for c in self.aws.calls]))
-        self.assertEqual(set([u'a', u'b', u'c', u'd', u'e', u'f']), set([c[2] for c in self.aws.calls]))
+        self.assertEqual(set([u'a', u'b', u'c', u'd', u'e', u'f']),
+                         set([c[2] for c in self.aws.calls]))
         self.assertNotEqual(old, self.account.updated)
 
         Project(name="Test project 2", account=self.account, regions="").save()
         print(self.account.regions)
         self.assertEqual(6, len(self.account.regions))
 
-        Project(name="Test project 3", account=self.account, regions="a,k,l").save()
+        Project(name="Test project 3", account=self.account,
+                regions="a,k,l").save()
         self.assertEqual(8, len(self.account.regions))
         self.assertEqual(3, self.account.projects.count())
 
     def testAccountNewInstance(self):
         # test instance creation via account instance
         self.account.new_instance(instance_id="123", type="small",
-                                  region="a", store="a", state="running").save()
+                                  region="a", store="a",
+                                  state="running").save()
         self.assertEqual(1, self.account.instances.count())
         i = self.account.instances.all()[0]
         self.assertEqual(self.account, i.account)
@@ -74,11 +79,16 @@ class TestAccount(FreezrTestCaseMixin, test.TestCase):
         for i in range(9):
             Instance(account=self.account, instance_id=str(i),
                      type="small", region="a",
-                     store="a", state="running" if (i % 2) == 0 else "stopped").save()
+                     store="a",
+                     state="running" if (i % 2) == 0 else "stopped").save()
 
         self.assertEqual(9, self.account.instances.count())
-        self.assertEqual(5, self.account.instances.filter(state="running").count())
-        self.assertEqual(4, self.account.instances.filter(~Q(state="running")).count())
+        self.assertEqual(5,
+                         (self.account.instances.filter(state="running")
+                          .count()))
+        self.assertEqual(4,
+                         (self.account.instances.filter(~Q(state="running"))
+                          .count()))
 
     def testAccountProjectState(self):
         # test that account moves projects from init state to running
@@ -115,7 +125,6 @@ class TestAccount(FreezrTestCaseMixin, test.TestCase):
         i.delete()
         self.account.refresh(aws=self.aws)
         assertState('running')
-
 
     def testRegionsDisappearing(self):
         # test case when region is removed from project on account,

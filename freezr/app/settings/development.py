@@ -1,10 +1,11 @@
 from __future__ import absolute_import
 try:
-    from .base import *
+    from .base import *  # noqa
 except Exception as ex:
     print("Exception during import from base: {0}".format(ex))
 
-import os, sys
+import os
+import sys
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 SECRET_KEY = 'o46@o6k5p#&kw(=+-d$=5-m1!7i&weju-e_pdn&d4rz27&__@='
@@ -58,19 +59,21 @@ DATABASES = {
         # .. which with a real db would not be such a big problem, but
         # with sqlite will cause the default 5 second timeout to
         # .. time out
-        'OPTIONS': { 'timeout': 30 },
+        'OPTIONS': {'timeout': 30},
     }
 }
 
 BROKER_URL = 'amqp://guest@localhost//'
 CELERY_RESULT_BACKEND = 'amqp'
-CELERY_TASK_RESULT_EXPIRES = 600 # 10 minutes
-CELERYD_LOG_FORMAT = '[%(asctime)s %(levelname)s/%(name)s-%(process)d] %(message)s'
+CELERY_TASK_RESULT_EXPIRES = 600  # 10 minutes
+CELERYD_LOG_FORMAT = ('[%(asctime)s %(levelname)s/%(name)s-%(process)d] '
+                      '%(message)s')
 if TESTING:
     CELERY_ALWAYS_EAGER = True
 TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
 if not TESTING:
-    FORMATTER_SIMPLE_FORMAT = '[%(asctime)s %(levelname)s/%(name)s-%(process)d] %(message)s'
+    FORMATTER_SIMPLE_FORMAT = ('[%(asctime)s %(levelname)s/%(name)s'
+                               '-%(process)d] %(message)s')
     LOGGING = {
         'version': 1,
         'formatters': {
@@ -131,4 +134,4 @@ FREEZR_API_ROOT = "/api"
 
 import os
 if 'DONT_IMPORT_CELERY' not in os.environ:
-    import freezr.backend.celery
+    import freezr.backend.celery  # noqa

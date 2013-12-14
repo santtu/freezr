@@ -1,19 +1,20 @@
 from __future__ import absolute_import
 from django.db import models
-from django.core.validators import validate_slug
 from django.core.exceptions import ValidationError
-from django.db import transaction, IntegrityError
+from django.db import transaction
 from django.contrib import auth
 from django.utils import timezone
 import re
 import freezr.common.util as util
-import freezr.common.filter as filter
+from . import filter
 
 VALID_INSTANCE_RE = re.compile(r'^i-[0-9a-f]+$')
+
 
 def validate_instance_id(value):
     if not VALID_INSTANCE_RE.match(value):
         raise ValidationError(u'%s is not a valid instance id' % value)
+
 
 def firsts(elts):
     return map(lambda e: e[0], elts)
@@ -74,13 +75,14 @@ INSTANCE_STATES = firsts(INSTANCE_STATE_CHOICES)
 
 LOG_ENTRY_TYPES_CHOICES = (
     ('info', 'Informational'),
-    ('verbose', 'Verbose information'), # lower priority than info
+    ('verbose', 'Verbose information'),  # lower priority than info
     ('exception', 'Program exception'),
     ('error', 'Error'),
     ('audit', 'Configuration changes')
     )
 
 LOG_ENTRY_TYPES = firsts(LOG_ENTRY_TYPES_CHOICES)
+
 
 class BaseModel(util.Logger, models.Model):
     """Just a common base model doing some mixins and stuff."""
@@ -100,6 +102,7 @@ class BaseModel(util.Logger, models.Model):
 
     class Meta:
         abstract = True
+
 
 class Domain(BaseModel):
     """"Domain" is just a category for being one abstract "customer",
@@ -135,11 +138,13 @@ class Domain(BaseModel):
             ('domain_admin', 'Is domain admin'),
             )
 
+
 class Account(BaseModel):
     # TODO: We really would want to add the AWS account ID here as
     # unique key, but getting it via API is stricly not possible,
     # although via a workaround it is. See here:
-    # http://stackoverflow.com/questions/10197784/how-can-i-deduce-the-aws-account-id-from-available-basicawscredentials
+    # http://stackoverflow.com/questions/10197784/
+    # how-can-i-deduce-the-aws-account-id-from-available-basicawscredentials
 
     # Accounts always under a domain
     domain = models.ForeignKey('Domain', related_name='accounts')
@@ -207,30 +212,33 @@ class Account(BaseModel):
             instance_ids = [i.instance_id for i in foreign_instances]
             foreign_instances.delete()
 
-            self.log_entry('Removed %d instances from regions not used' % (
+            self.log_entry(
+                'Removed %d instances from regions not used' % (
                     foreign_count,),
-                           details='Instances: %s' % (", ".join(instance_ids),),
-                           type='info')
+                details='Instances: %s' % (", ".join(instance_ids),),
+                type='info')
 
         elapsed = timezone.now() - started
 
         # type switch to keep info level events relevant, "nothing
         # changed" isn't that
         if len(regions):
-            self.log_entry('Refreshed %d regions in %.2f seconds, '
-                           'total %d / added %d / deleted %d instances' % (
+            self.log_entry(
+                'Refreshed %d regions in %.2f seconds, '
+                'total %d / added %d / deleted %d instances' % (
                     len(regions),
                     elapsed.seconds + elapsed.microseconds / 1e6,
                     total, added, deleted),
-                           type=("info" if (added + deleted) > 0 else "verbose"))
+                type=("info" if (added + deleted) > 0 else "verbose"))
 
         # Go through projects that are 'init' state and see if they
         # have any picked or saved instances --- then we move them to
         # "running" state.
         for project in self.projects.filter(state_actual='init').all():
             if project.picked_instances or project.saved_instances:
-                project.log_entry('Moving {0} from initializing to '
-                                      'running state'.format(project))
+                project.log_entry(
+                    'Moving {0} from initializing to running state'
+                    .format(project))
 
                 project.save_state('running')
 
@@ -259,6 +267,7 @@ class Account(BaseModel):
     def _log_entry(self, l):
         l.account = self
 
+
 class Tag(BaseModel):
     # Tag key
     key = models.CharField(max_length=TAG_KEY_LENGTH_MAX)
@@ -273,6 +282,7 @@ class Tag(BaseModel):
     def __cmp__(self, other):
         return self.key.__cmp__(other.key)
 
+
 class InstanceTag(Tag):
     # To instance ..
     instance = models.ForeignKey('Instance', related_name='tags')
@@ -285,6 +295,7 @@ class InstanceTag(Tag):
 
     def _log_entry(self, l):
         l.account = self.instance.account
+
 
 class Instance(BaseModel):
     # Which account this instances has been retrieved from.
@@ -389,6 +400,7 @@ class ElasticIp(BaseModel):
     # IP address itself
     address = models.CharField(max_length=20)
 
+
 # Projects
 class Project(BaseModel):
     # Project name
@@ -433,7 +445,9 @@ class Project(BaseModel):
     # Region where this project applies to, this is encoded as a char
     # field, below we have a property to allow setting and retrieving
     # this as a list.
-    regions_actual = models.CharField(max_length=255, default=",".join(EC2_REGIONS), blank=True)
+    regions_actual = models.CharField(max_length=255,
+                                      default=",".join(EC2_REGIONS),
+                                      blank=True)
     # Long description
     description = models.TextField(blank=True)
 
@@ -473,7 +487,8 @@ class Project(BaseModel):
         picked = set()
 
         for instance in self.account.instances.filter(region__in=self.regions):
-            #self.log.debug("filter: looking at %s with %r", instance, f.format())
+            #self.log.debug("filter: looking at %s with %r", instance,
+            #f.format())
             if f.evaluate(instance.environment):
                 picked.add(instance)
 
@@ -551,8 +566,6 @@ class Project(BaseModel):
         assert(len(skip_instances & terminate_instances) == 0,
                "some instances are marked for both termination and skipping")
 
-        started = timezone.now()
-
         self.save_state('freezing')
 
         for instance in terminate_instances:
@@ -565,8 +578,9 @@ class Project(BaseModel):
 
         # TODO: EIP information storage
 
-        self.log_entry('Freezing project, terminating %d instances, '
-                       'stopping %d instances' % (
+        self.log_entry(
+            'Freezing project, terminating %d instances, '
+            'stopping %d instances' % (
                 len(terminate_instances),
                 len(save_instances)))
 
@@ -599,7 +613,8 @@ class Project(BaseModel):
             aws.thaw_instance(instance)
             saved_instances.append(instance)
 
-        self.log_entry('Thawing project, starting %d instances' % (
+        self.log_entry(
+            'Thawing project, starting %d instances' % (
                 len(saved_instances)))
 
         self.account.log_entry('Thawed project %s' % (self,))
@@ -631,14 +646,15 @@ class Project(BaseModel):
         # not allowed to actually delete instances so "terminated" can
         # pop up in here (in rare cases).
 
-        if (self.state == 'freezing' and
-            all(i.state == 'terminated' for i in self.terminated_instances) and
-            all(i.state == 'stopped' for i in self.saved_instances)):
+        if ((self.state == 'freezing' and
+             all(i.state == 'terminated'
+                 for i in self.terminated_instances) and
+             all(i.state == 'stopped' for i in self.saved_instances))):
             self.log_entry('Project frozen (%.1fs elapsed)' % (seconds()))
             self.save_state('frozen')
 
-        if (self.state == 'thawing' and
-            all(i.state == 'running' for i in self.saved_instances)):
+        if ((self.state == 'thawing' and
+             all(i.state == 'running' for i in self.saved_instances))):
             self.log_entry('Project thawed (%.1fs elapsed)' % (seconds()))
             self.save_state('running')
 
@@ -647,6 +663,7 @@ class Project(BaseModel):
             ('freeze_project', 'Can freeze linked project assets'),
             ('thaw_project', 'Can thaw linked project assets'),
             )
+
 
 class ProjectGroupRelation(BaseModel):
     """Relation object telling what permission is connected to which
@@ -676,6 +693,7 @@ class ProjectGroupRelation(BaseModel):
 
     def _log_entry(self, l):
         l.project = self.project
+
 
 class LogEntry(models.Model):
     # Entry type

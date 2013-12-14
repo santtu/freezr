@@ -1,16 +1,18 @@
 from django import test
 import logging
 from freezr.core.models import Account, Domain, Project, Instance
-from django.db.models import Q
 import freezr.tests.util as util
 
 log = logging.getLogger(__file__)
 
+
 def arg(lst, n):
     return [e[n] for e in lst]
 
+
 def ids(lst):
     return [i.instance_id for i in lst]
+
 
 class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
     def setUp(self):
@@ -60,7 +62,6 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
 
         return inner(self.project, pick_filter, save_filter, terminate_filter)
 
-
     def deleteInstances(self):
         """Delete all instances directly from DB so far created within
         this test case."""
@@ -73,11 +74,11 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
         """Create instance set 1 -- simple, three running instances,
         one nameless (but with empty Name tag) and two others named
         layer and hardy."""
-        self.instances.extend([
-                self.instance(tag_Name=''),
-                self.instance(tag_Name='laurel'),
-                self.instance(tag_Name='hardy')
-                ])
+        self.instances.extend(
+            [self.instance(tag_Name=''),
+             self.instance(tag_Name='laurel'),
+             self.instance(tag_Name='hardy')
+             ])
 
     def createSet2(self, override={}):
         """Create instance set 2 -- 10 instances, where
@@ -153,8 +154,7 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
                     ('terminated', len(terminated), terminate[1]),
                     ('skipped',
                      len(skipped),
-                     (len(picked) - len(saved) - len(terminated)))
-                    ):
+                     (len(picked) - len(saved) - len(terminated)))):
                     self.assertEqual(
                         expected, got,
                         "Filters pick=%r, save=%r, terminate=%r returned "
@@ -313,9 +313,13 @@ class TestAccount(util.FreezrTestCaseMixin, test.TestCase):
         self.assertState('running')
         self.assertEqual(len(aws.calls), 2)
         self.assertEqualSet(ids(arg(aws.calls, 1)), ('i-000001', 'i-000002'))
-        self.assertEqualSet([i.instance_id for i in Instance.objects.filter(state='running')], ('i-000001', 'i-000002'))
+        self.assertEqualSet([i.instance_id
+                             for i in
+                             Instance.objects.filter(state='running')],
+                            ('i-000001', 'i-000002'))
 
-        stopped_ids = [i.instance_id for i in Instance.objects.filter(state='stopped')]
+        stopped_ids = [
+            i.instance_id for i in Instance.objects.filter(state='stopped')]
 
         # Verify we can save all.
         reset()

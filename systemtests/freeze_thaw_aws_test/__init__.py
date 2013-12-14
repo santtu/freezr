@@ -1,2 +1,2 @@
 from __future__ import absolute_import
-import freezr.backend.celery
+import freezr.backend.celery  # noqa

@@ -1,40 +1,30 @@
+from __future__ import absolute_import
 from django.contrib import admin, auth
-from django import forms
-from django.forms import widgets
-import django.contrib.auth.models
-import django.contrib.auth.admin
-from freezr.core.models import *
-import freezr.common.util as util
+import django.contrib.auth.admin  # noqa, needed for auth.admin to work
+from freezr.core.models import (Account, ProjectGroupRelation,
+                                LogEntry, Domain, Project)
 import logging
 
 log = logging.getLogger('freezr.admin')
 
+
 class ProjectGroupRelationInline(admin.TabularInline):
     model = ProjectGroupRelation
 
-# class DomainInline(admin.TabularInline):
-#     model = Domain
-
-# class UserAdmin(auth.admin.UserAdmin):
-#     """Extend default UserAdmin to include list of owned domains."""
-#     inlines = (DomainInline,)
 
 class GroupAdmin(auth.admin.GroupAdmin):
     """Extend the contrib GroupAdmin to include our project group
     relation to the admin editor."""
     inlines = (ProjectGroupRelationInline,)
 
-# class ProjectAdminForm(forms.ModelForm):
-#     #_regions = forms.CharField(label="Regions") # width ...
-#     class Meta:
-#         model = Project
 
 class ProjectAdmin(admin.ModelAdmin):
     inlines = (ProjectGroupRelationInline,)
-#    form = ProjectAdminForm
+
 
 class LogEntryAdmin(admin.ModelAdmin):
     readonly_fields = LogEntry._meta.get_all_field_names()
+
 
 def setup():
     admin.autodiscover()

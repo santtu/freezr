@@ -4,7 +4,6 @@ import logging
 import json
 import boto.ec2
 import freezr.common.util as util
-import logging
 import time
 import copy
 
@@ -12,6 +11,7 @@ FILTER_KEYS = ('pick_filter', 'save_filter', 'terminate_filter')
 
 requests.adapters.DEFAULT_RETRIES = 5
 log = logging.getLogger('freeze_thaw_aws_test.util')
+
 
 class Client(util.Logger):
     """Quick and dirty almost-like-real-django/rest-test-Client
@@ -27,7 +27,8 @@ class Client(util.Logger):
 
     def _url(self, path):
         if path[0] != '/':
-            assert path.startswith(self.base_url), "{0} is not a valid path".format(path)
+            assert(path.startswith(self.base_url),
+                   "{0} is not a valid path".format(path))
             return path
 
         return self.base_url + path
@@ -52,8 +53,8 @@ class Client(util.Logger):
         self.log.debug("Response status: %s", r.status_code)
         #self.log.debug("Response headers: %r", r.headers)
 
-        if (r.headers['content-type'] == 'application/json' and
-            r.status_code not in (204,)):
+        if ((r.headers['content-type'] == 'application/json' and
+             r.status_code not in (204,))):
             r.data = json.loads(r.text)
 
             # keep log_entries out of debug print in here, they are
@@ -89,6 +90,7 @@ class Client(util.Logger):
     def delete(self, path, data={}):
         return self.request(self.s.delete, path, data)
 
+
 class Mixin(util.Logger):
     DOMAIN_DATA = {'domain': 'freezr.test.local',
                    'name': 'Freezr integration test domain'}
@@ -97,8 +99,8 @@ class Mixin(util.Logger):
     DUMMY_DOMAIN_DATA = {'domain': 'dummy.local',
                          'name': 'Dummay domain'}
 
-    ACCOUNT_DATA = { 'name': 'AWS account'}
-    DUMMY_ACCOUNT_DATA = { 'name': 'Dummy account' }
+    ACCOUNT_DATA = {'name': 'AWS account'}
+    DUMMY_ACCOUNT_DATA = {'name': 'Dummy account'}
 
     # Keep identifying information in _DATA, and those that we might
     # modify during testing in _VOLATILE.
@@ -150,8 +152,9 @@ class Mixin(util.Logger):
                     filters = {key: self.data[key] for key in FILTER_KEYS}
                     r = self.client.patch(self.project, filters)
                     self.parent.assertCode(r, 200)
-                    self.parent.assertEqual({key: r.data[key] for key in FILTER_KEYS},
-                                            filters)
+                    self.parent.assertEqual(
+                        {key: r.data[key] for key in FILTER_KEYS},
+                        filters)
                 except:
                     log.exception('oops')
                     if not type:
@@ -215,8 +218,8 @@ class Mixin(util.Logger):
                                pattern, self.cleanup(datum))
                 return datum
 
-        self.fail('Could not find datum matching %r from %r' % (
-                pattern, data))
+        self.fail('Could not find datum matching %r from %r' %
+                  (pattern, data))
 
     def timeout(self, secs=300, fail=True):
         class inner(object):

@@ -1,6 +1,7 @@
 import unittest
 import time
-from util import *
+from util import merge, Mixin
+
 
 class PopulateEnvironment(Mixin, unittest.TestCase):
     def test01PopulateDomain(self):
@@ -21,7 +22,6 @@ class PopulateEnvironment(Mixin, unittest.TestCase):
                                    domain=self.domain.id,
                                    access_key=self.AWS_ACCESS_KEY_ID,
                                    secret_key=self.AWS_SECRET_ACCESS_KEY))
-
 
         self.assertCode(r, 201)
 

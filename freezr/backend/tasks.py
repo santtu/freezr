@@ -4,12 +4,8 @@ from . import aws
 from freezr.core.models import Account, Project, Instance
 from django.utils import timezone
 from datetime import timedelta
-from celery.decorators import periodic_task
 import logging
-from celery import Celery, group, chain
-from celery.result import GroupResult
-from celery.exceptions import Retry
-from functools import wraps
+from celery import group, chain
 from django.db.utils import OperationalError
 from decorator import decorator
 
@@ -17,16 +13,18 @@ log = logging.getLogger('freezr.backend.tasks')
 # shutting-down is a transition, but from our point of view the
 # instances is already gone when it starts that transition
 STABLE_INSTANCE_STATES = ('running', 'stopped',
-                            'terminated', 'shutting-down')
+                          'terminated', 'shutting-down')
 REFRESH_INSTANCE_INTERVAL = 5
 STABLE_PROJECT_STATES = ('error', 'running', 'frozen')
 REFRESH_PROJECT_INTERVAL = 15
-ACCOUNT_UPDATE_INTERVAL = 3600 # 1 hour
+ACCOUNT_UPDATE_INTERVAL = 3600  # 1 hour
+
 
 # Just a debug task, get rid of it later.
 @app.task(bind=True)
 def debug_task(self):
     print('Request: {0!r}'.format(self.request))
+
 
 @decorator
 def retry(func, *args, **kwargs):
@@ -42,7 +40,8 @@ def retry(func, *args, **kwargs):
     except OperationalError as ex:
         log.debug('[%s] Retry on database error', args[0].request.id)
         #, exc_info=True)
-        args[0].retry(exc=ex, countdown=15) # more aggressive retry schedule
+        args[0].retry(exc=ex, countdown=15)  # more aggressive retry
+                                             # schedule
 
 
 def dispatch(task, **kwargs):
@@ -58,6 +57,7 @@ def dispatch(task, **kwargs):
 # default we'll update entries only older than 1 hour. This means that
 # if an entry could not be updated (errors, failure in connection)
 # then it'll be retried within 10 minutes.
+
 
 @app.task(bind=True)
 @retry
@@ -116,8 +116,7 @@ def refresh_account(self, pk, regions=None,
             delta >= timedelta(seconds=older_than) or
             # Someone has a botched clock, timestamp is to the future,
             # force update
-            delta < -timedelta(hours=1, seconds=older_than)
-            )
+            delta < -timedelta(hours=1, seconds=older_than))
 
         log.debug("%s <=> %s --> delta=%s < %s = %s (forced %s)",
                   timezone.now(), account.updated, delta,
@@ -144,6 +143,7 @@ def refresh_account(self, pk, regions=None,
             dispatch(refresh_instance.si(instance.id),
                      countdown=REFRESH_INSTANCE_INTERVAL)
 
+
 @app.task(bind=True)
 @retry
 def refresh_project(self, pk):
@@ -158,6 +158,7 @@ def refresh_project(self, pk):
     if project.state not in STABLE_PROJECT_STATES:
         dispatch(refresh_project.si(project.id),
                  countdown=REFRESH_PROJECT_INTERVAL)
+
 
 @app.task(bind=True)
 @retry
@@ -179,6 +180,7 @@ def freeze_project(self, pk):
     if project.state == 'freezing':
         dispatch(refresh_project.si(project.id),
                  countdown=REFRESH_PROJECT_INTERVAL)
+
 
 @app.task(bind=True)
 @retry
@@ -203,6 +205,7 @@ def thaw_project(self, pk):
 # since refresh_instance cannot be directly triggered from outside, it
 # is used in case we have already a need to do an instance refresh. So
 # let's do it regardless of account active state.
+
 
 @app.task(bind=True)
 @retry
@@ -240,11 +243,12 @@ def refresh_instance(self, pk):
                                             ('stopping', 'running')):
             if instance.aws_instance:
                 i = instance.aws_instance
-                details=('Instance %s was starting, previous state %s and '
-                         'current state is %s.\n\n'
-                         'Server reason: %s\n'
-                         'State reason code: %s\n'
-                         'State reason message: %s\n' % (
+                details = (
+                    'Instance %s was starting, previous state %s and '
+                    'current state is %s.\n\n'
+                    'Server reason: %s\n'
+                    'State reason code: %s\n'
+                    'State reason message: %s\n' % (
                         instance.instance_id,
                         prev_state, instance.state,
                         i.reason,
@@ -290,6 +294,7 @@ def log_result(self, result, task=None):
     # for n in dir(self):
     #     if n[0] != '_':
     #         log.debug("Task: %s = %r", n, getattr(self, n))
+
 
 @app.task(bind=True)
 @retry

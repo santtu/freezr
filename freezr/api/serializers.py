@@ -1,12 +1,15 @@
+from __future__ import absolute_import
 from rest_framework import serializers
-from freezr.core.models import *
+from freezr.core.models import Account, LogEntry, Domain, Project, Instance
 from freezr.common.util import separator_split
+import freezr.common.util as util
 import logging
 from freezr.backend.tasks import refresh_account, dispatch
 from itertools import chain
 from collections import Counter
 
 log = logging.getLogger('freezr.serializers')
+
 
 class ImmutableMixin(object):
     def restore_object(self, attrs, instance=None):
@@ -21,12 +24,14 @@ class ImmutableMixin(object):
         return super(ImmutableMixin, self).restore_object(attrs,
                                                           instance=instance)
 
+
 class CommaStringListField(util.Logger, serializers.WritableField):
     def to_native(self, obj):
         return list(set(separator_split(obj, ",")))
 
     def from_native(self, data):
         return ",".join(data)
+
 
 class LogEntrySerializer(serializers.ModelSerializer):
     user_id = serializers.Field(source='user.id')
@@ -36,7 +41,7 @@ class LogEntrySerializer(serializers.ModelSerializer):
         model = LogEntry
         fields = ('type', 'time', 'message', 'details', 'user_id', 'user')
 
-#class DomainSerializer(serializers.HyperlinkedModelSerializer):
+
 class DomainSerializer(serializers.ModelSerializer):
     log_entries = LogEntrySerializer(many=True, read_only=True)
 
@@ -52,7 +57,7 @@ class AccountSerializer(util.Logger, ImmutableMixin,
                         serializers.ModelSerializer):
 #                        serializers.HyperlinkedModelSerializer):
     regions = serializers.Field()
-    updated = serializers.Field() # no user-initiated updates on this field
+    updated = serializers.Field()  # no user-initiated updates on this field
     log_entries = LogEntrySerializer(many=True, read_only=True)
     secret_key = serializers.WritableField(required=False)
 
@@ -74,8 +79,9 @@ class AccountSerializer(util.Logger, ImmutableMixin,
     def restore_object(self, attrs, instance=None):
         # Cannot change active if any of the projects are in a
         # transitioning state.
-        if (instance and 'active' in attrs and
-            attrs['active'] != instance.active):
+        if ((instance and 'active' in attrs and
+             attrs['active'] != instance.active)):
+
             for project in instance.projects.all():
                 if project.state in ('freezing', 'thawing'):
                     self._errors['active'] = [
@@ -111,21 +117,9 @@ class AccountSerializer(util.Logger, ImmutableMixin,
                   )
         immutable_fields = ('domain',)
 
+
 class ProjectSerializer(util.Logger, ImmutableMixin,
-#                        serializers.HyperlinkedModelSerializer):
                         serializers.ModelSerializer):
-    # picked_instances = serializers.HyperlinkedRelatedField(
-    #     many=True, view_name='instance-detail', read_only=True)
-
-    # saved_instances = serializers.HyperlinkedRelatedField(
-    #     many=True, view_name='instance-detail', read_only=True)
-
-    # terminated_instances = serializers.HyperlinkedRelatedField(
-    #     many=True, view_name='instance-detail', read_only=True)
-
-    # skipped_instances = serializers.HyperlinkedRelatedField(
-    #     many=True, view_name='instance-detail', read_only=True)
-
     picked_instances = serializers.PrimaryKeyRelatedField(
         many=True, read_only=True)
 
@@ -172,7 +166,8 @@ class ProjectSerializer(util.Logger, ImmutableMixin,
                                                  instance.regions or [])
 
         if 'regions_actual' in attrs:
-            request_regions = set(separator_split(attrs['regions_actual'], ","))
+            request_regions = \
+                set(separator_split(attrs['regions_actual'], ","))
 
         refresh = False
 
@@ -192,9 +187,10 @@ class ProjectSerializer(util.Logger, ImmutableMixin,
         if request_regions ^ instance_regions:
             account = instance.account if instance else attrs['account']
 
-            current = Counter(chain.from_iterable([
-                        project.regions for project in account.projects.all()
-                        ]))
+            current = Counter(
+                chain.from_iterable(
+                    [project.regions for project in account.projects.all()]
+                    ))
 
             current_regions = set(current)
 
@@ -220,11 +216,12 @@ class ProjectSerializer(util.Logger, ImmutableMixin,
 
         if refresh:
             dispatch(refresh_account.si(account.id, forced=True))
-            account.log_entry('Regions changed',
-                              details='Added: %s\nRemoved: %s' % (
+            account.log_entry(
+                'Regions changed',
+                details='Added: %s\nRemoved: %s' % (
                     ", ".join(added_regions) or "none",
                     ", ".join(removed_regions) or "none"),
-                              type='info')
+                type='info')
 
         return super(ProjectSerializer, self).restore_object(attrs,
                                                              instance=instance)
@@ -243,7 +240,7 @@ class ProjectSerializer(util.Logger, ImmutableMixin,
                   )
         immutable_fields = ('account',)
 
-#class InstanceSerializer(serializers.HyperlinkedModelSerializer):
+
 class InstanceSerializer(serializers.ModelSerializer):
     tags = serializers.Field()
 
