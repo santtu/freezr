@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 from .celery import app
-from . import aws
+from . import get_backend
 from freezr.core.models import Account, Project, Instance
 from django.utils import timezone
 from datetime import timedelta
@@ -130,7 +130,7 @@ def refresh_account(self, pk, regions=None,
 
     # Ah well, probably should get a database transaction or something
     # like that here.
-    account.refresh(regions=regions, aws=aws.AwsInterface(account))
+    account.refresh(regions=regions, aws=get_backend(account))
 
     # See if any of the instances ended up in a "transitioning" state,
     # fire separate update tasks for them.
@@ -173,7 +173,7 @@ def freeze_project(self, pk):
     if not project.account.active or project.state != 'freezing':
         return
 
-    project.freeze(aws=aws.AwsInterface(project.account))
+    project.freeze(aws=get_backend(project.account))
 
     # Schedule project refresh to watch instance states until all have
     # stabilised.
@@ -195,7 +195,7 @@ def thaw_project(self, pk):
     if not project.account.active or project.state != 'thawing':
         return
 
-    project.thaw(aws=aws.AwsInterface(project.account))
+    project.thaw(aws=get_backend(project.account))
 
     if project.state == 'thawing':
         dispatch(refresh_project.si(project.id),
@@ -228,7 +228,7 @@ def refresh_instance(self, pk):
              instance, instance.state)
 
     prev_state = instance.state
-    instance.refresh(aws=aws.AwsInterface(instance.account))
+    instance.refresh(aws=get_backend(instance.account))
 
     # we want to use the old instance object if it is still valid
     if get():

@@ -43,4 +43,6 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+FREEZR_CLOUD_BACKEND = 'freezr.backend.aws.AwsInterface'
+
 #import freezr.celery
