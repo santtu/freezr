@@ -1,4 +1,4 @@
-Django
+Django==1.6
 Markdown
 PyYAML
 amqp
@@ -21,7 +21,6 @@ pyparsing
 pyrabbit
 pysqlite
 pytz
-readline
 redis
 requests
 wsgiref
