@@ -7,4 +7,4 @@ install:
 before_script:
   - flake8 --ignore=E221,E701,E202,E123 freezr systemtests
 script:
-  - python manage.py test
+  - python manage.py test -v1
