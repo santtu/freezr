@@ -11,6 +11,7 @@ from .util import AwsMockFactory, ImmediateAwsMock, with_aws
 from django.utils import timezone
 from datetime import timedelta
 import freezr.backend
+from django.conf import settings
 
 log = logging.getLogger(__file__)
 
@@ -25,6 +26,10 @@ class TestREST(test.APITestCase):
 
     def setUp(self):
         self.account = Account.objects.get(pk=1)
+        self.saved_cloud_backend = settings.FREEZR_CLOUD_BACKEND
+
+    def tearDown(self):
+        settings.FREEZR_CLOUD_BACKEND = self.saved_cloud_backend
 
     def assertSimilar(self, a, b, msg=None,
                       sets=('regions', 'projects', 'accounts')):
@@ -227,9 +232,8 @@ class TestREST(test.APITestCase):
             self.assertEqual(len(factory.aws.calls), 8)
             self.assertNotEqual(Account.objects.get(pk=1).updated, old)
 
-            factory = AwsMockFactory(ImmediateAwsMock)
-            freezr.backend.aws.AwsInterface = factory
-
+        factory = AwsMockFactory(ImmediateAwsMock)
+        with with_aws(factory):
             old = Account.objects.get(pk=3).updated
             response = self.client.post(reverse('account-refresh', args=[3]))
             self.assertEqual(response.status_code, 202)

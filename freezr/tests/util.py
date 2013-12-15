@@ -1,4 +1,5 @@
 import logging
+from django.conf import settings
 
 log = logging.getLogger('freezr.tests.util')
 
@@ -128,22 +129,20 @@ class FreezrTestCaseMixin(object):
         self.assertSetEqual(set(list1), set(list2))
 
 
-def with_aws(aws):
+def with_aws(aws_factory):
     class inner(object):
-        def __init__(self, aws):
-            self.aws = aws
-            self.old_aws = None
+        def __init__(self, factory):
+            self.factory = factory
+            self.saved_cloud_backend = None
 
         def __enter__(self):
-            import freezr.backend.aws
-            self.old_aws = freezr.backend.aws.AwsInterface
-            freezr.backend.aws.AwsInterface = self.aws
+            self.saved_cloud_backend = settings.FREEZR_CLOUD_BACKEND
+            settings.FREEZR_CLOUD_BACKEND = self.factory
 
         def __exit__(self, type, value, traceback):
-            import freezr.backend.aws
-            freezr.backend.aws.AwsInterface = self.old_aws
+            settings.FREEZR_CLOUD_BACKEND = self.saved_cloud_backend
 
-    return inner(aws)
+    return inner(aws_factory)
 
 
 # from http://stackoverflow.com/a/14620633/779129
