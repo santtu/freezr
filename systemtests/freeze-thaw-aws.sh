@@ -25,7 +25,7 @@ AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_DEFAULT_REGION." >&2
 fi
 
 function env_setup {
-    if [[ -x $top_dir/virtualenv/bin/activate && -z "$VIRTUAL_ENV" ]]; then
+    if [[ -r $top_dir/virtualenv/bin/activate && -z "$VIRTUAL_ENV" ]]; then
 	source $top_dir/virtualenv/bin/activate
     fi
 }
