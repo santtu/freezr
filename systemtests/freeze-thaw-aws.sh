@@ -84,6 +84,7 @@ function check_add {
     name="$1"
     pid="$2"
     pids+=("$pid")
+    logfile="$3"
 
     if [ -z "$pid" ]; then
 	echo "No child detected ..."
@@ -93,9 +94,11 @@ function check_add {
     if ! check "$pid"; then
 	set +e
 	echo "Child $pid ($name) died ..."
-	if [ -z "$3" ]; then
-	    echo "Log file $3 ..."
-	    tail -n50 "$3"
+	if [ -n "$logfile" ]; then
+	    echo "Log file $logfile ..."
+	    echo "------------------------------------------------------------------------"
+	    tail -n50 "$logfile"
+	    echo "------------------------------------------------------------------------"
 	fi
 	exit 1
     fi
