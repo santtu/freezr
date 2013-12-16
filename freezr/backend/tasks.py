@@ -51,9 +51,10 @@ def get_aws(account):
 def dispatch(task, **kwargs):
     """Dispatches the given task with default error and result
     handlers. Returns the async object."""
+    if kwargs:
+        task.set(**kwargs)
     final_task = chain(task, log_result.s(task=repr(task)))
-    async = final_task.apply_async(link_error=log_error.s(),
-                                   **kwargs)
+    async = final_task.apply_async(link_error=log_error.s())
     log.info('[%s] Dispatched "%r" (%r)', async, task, kwargs)
     return async
 

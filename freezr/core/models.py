@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.contrib import auth
 from django.utils import timezone
+import django.contrib.auth.models  # noqa
 import re
 import freezr.common.util as util
 from . import filter
