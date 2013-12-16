@@ -91,7 +91,12 @@ function check_add {
     fi
 
     if ! check "$pid"; then
+	set +e
 	echo "Child $pid ($name) died ..."
+	if [ -z "$3" ]; then
+	    echo "Log file $3 ..."
+	    tail -n50 "$3"
+	fi
 	exit 1
     fi
 
@@ -108,15 +113,15 @@ trap 'terminate $?' EXIT
 trap 'terminate 1' HUP INT QUIT TERM
 
 # See if there is rabbitmq-server already running, if not, spawn one.
-if ! rabbitmqctl status >/dev/null 2>&1; then
+if ! rabbitmqctl status >>$(logname rabbitmq) 2>&1; then
     echo -n "RabbitMQ server not running, starting temporary server ... "
     rabbitmq-server >>$(logname rabbitmq) 2>&1 &
     pid=$!
+    sleep 5; check_add "rabbitmq-server" $pid $(logname rabbitmq)
     while ! nc localhost 5672 </dev/null >>$(logname rabbitmq) 2>&1
     do
 	sleep 1
     done
-    sleep 5; check_add "rabbitmq-server" $pid
     echo "done"
 fi
 
@@ -153,7 +158,7 @@ else
     rm -f celeryd.pid
     $manage celeryd --concurrency 1 -B -l debug \
 	--pidfile $cur_dir/celeryd.pid >>$(logname celeryd) 2>&1 &
-    sleep 5; check_add "manage.py celeryd" "$(cat celeryd.pid)"
+    sleep 5; check_add "manage.py celeryd" "$(cat celeryd.pid)" $(logname celeryd)
     echo "done"
 
     echo -n "Starting application server ... "
@@ -161,7 +166,7 @@ else
 
     # can't use $! here, see https://code.djangoproject.com/ticket/19137
     # the extra sleep is *required*
-    sleep 5; check_add "manage.py runserver 9000" 'runserver 9000'
+    sleep 5; check_add "manage.py runserver 9000" 'runserver 9000' $(logname freezr)
     echo "done"
 fi
 
