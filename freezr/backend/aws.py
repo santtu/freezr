@@ -16,9 +16,10 @@ class AwsInterface(util.Logger):
     move a lot of aws-specific code out of the model classes
     themselves (lest they bloat)."""
 
-    def __init__(self, account):
+    def __init__(self, access_key=None, secret_key=None):
         super(AwsInterface, self).__init__()
-        self.account = account
+        self.access_key = access_key
+        self.secret_key = secret_key
         self.conns = {}
 
     def disconnect(self):
@@ -30,11 +31,11 @@ class AwsInterface(util.Logger):
 
         self.conns[region] = boto.ec2.connect_to_region(
             region,
-            aws_access_key_id=self.account.access_key,
-            aws_secret_access_key=self.account.secret_key)
+            aws_access_key_id=self.access_key,
+            aws_secret_access_key=self.secret_key)
 
-        self.log.debug("Connected to region %s on account %s: %r",
-                       region, self.account, self.conns[region])
+        self.log.debug("Connected to region %s with key %s: %r",
+                       region, self.access_key, self.conns[region])
 
         return self.conns[region]
 

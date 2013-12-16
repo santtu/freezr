@@ -22,12 +22,12 @@ Prerequisites
 
 * Trent Mick's `excellent command-line \`json\` tool <http://trentm.com/json/>`_.
 
-Running tests
-=============
+Running integration tests
+=========================
 
 The easiest approach is to run `run-integration-test.sh` script::
 
-  $ ./tests/run-integration-test.sh AWS-ACCESS-KEY-ID AWS-SECRET-ACCESS-KEY
+  $ ./systemtests/run-integration-test.sh AWS-ACCESS-KEY-ID AWS-SECRET-ACCESS-KEY
 
 You can also specify `KEY-NAME` and `REGION`, but these default to
 empty (no key, you *can not* log in to instances) and
@@ -41,16 +41,17 @@ tests against it and finally tear down the stack.
 The more manual approach is to deploy the stack yourself, run tests
 against it, and tear down the stack when you are done::
 
+  $ cd systemtests
   $ export AWS_ACCESS_KEY_ID=<id>
   $ export AWS_SECRET_ACCESS_KEY=<secret>
   $ export AWS_DEFAULT_REGION=<region>
   $ ./deploy
-  $ ./tests/freeze-thaw-aws.sh
+  $ ./freeze-thaw-aws.sh
   $ ./deploy stop
 
 If you want to run individual test sets directly, do::
 
-  $ cd tests
+  $ cd systemtests
   $ nosetests -x -v freeze_thaw_aws_test/...py
 
 `run-integration-tests.sh` and `freeze-thaw-aws.sh` scripts will check
@@ -69,6 +70,22 @@ and when you want to re-test using the same environment, do:
   $ while ./run-integration-tests.sh; do; done
 
 **Note:** Some of the integration tests are destructive -- **you
-  cannot** run the whole suite without a full cloudformation stack
-  redeployment after running them. If you want to run integration
-  tests repeatedly you **must** also set `SKIP_DESTRUCTIVE_TESTS`.
+cannot** run the whole suite without a full cloudformation stack
+redeployment after running them. If you want to run integration tests
+repeatedly you **must** also set `SKIP_DESTRUCTIVE_TESTS`.
+
+
+Running integration tests without AWS
+=====================================
+
+It is possible to run the integration tests without an actual AWS
+account. To do this, run:
+
+  $ ./systemtests/run-fake-integration-test.sh
+
+This will be almost like the real integration test **except the AWS
+connection and state** are mocked. This test will not provision
+CloudFormation stack. Of course, it cannot be guaranteed to 100% match
+the real AWS environment, but apart from the actual `boto.ec2`
+connection it will exercise same code paths as the real integration
+test.

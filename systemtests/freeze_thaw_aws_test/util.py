@@ -2,15 +2,25 @@ import os
 import requests
 import logging
 import json
-import boto.ec2
 import freezr.common.util as util
 import time
 import copy
+from freezr.backend import get_backend
+from functools import wraps
 
 FILTER_KEYS = ('pick_filter', 'save_filter', 'terminate_filter')
+DEFAULT_TIMEOUT = int(os.environ.get('DEFAULT_TEST_TIMEOUT', '300'))
 
 requests.adapters.DEFAULT_RETRIES = 5
-log = logging.getLogger('freeze_thaw_aws_test.util')
+log = logging.getLogger('freezr.systemtests.util')
+
+
+def only_real_aws(func):
+    @wraps(func)
+    def inner(self, *args, **kwargs):
+        if self.real_aws:
+            return func(self, *args, **kwargs)
+    return inner
 
 
 class Client(util.Logger):
@@ -27,8 +37,8 @@ class Client(util.Logger):
 
     def _url(self, path):
         if path[0] != '/':
-            assert(path.startswith(self.base_url),
-                   "{0} is not a valid path".format(path))
+            assert path.startswith(self.base_url), \
+                "{0} is not a valid path".format(path)
             return path
 
         return self.base_url + path
@@ -120,6 +130,7 @@ class Mixin(util.Logger):
         self.AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
         self.AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
         self.AWS_REGION = os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
+        self.real_aws = 'AWS_FAKE' not in os.environ
         self._ec2 = None
         self._cache = {}
 
@@ -221,7 +232,7 @@ class Mixin(util.Logger):
         self.fail('Could not find datum matching %r from %r' %
                   (pattern, data))
 
-    def timeout(self, secs=300, fail=True):
+    def timeout(self, secs=DEFAULT_TIMEOUT, fail=True):
         class inner(object):
             def __init__(self, until, fail):
                 self.start = time.time()
@@ -245,10 +256,17 @@ class Mixin(util.Logger):
         if self._ec2:
             return self._ec2
 
-        self._ec2 = boto.ec2.connect_to_region(
-            self.AWS_REGION,
-            aws_access_key_id=self.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=self.AWS_SECRET_ACCESS_KEY)
+        assert self.real_aws, \
+            "This should not have been reached with fake AWS backend"
+
+        self._ec2 = (get_backend(self.AWS_ACCESS_KEY_ID,
+                                 self.AWS_SECRET_ACCESS_KEY)
+                     .connect_ec2(self.AWS_REGION))
+
+        # self._ec2 = boto.ec2.connect_to_region(
+        #     self.AWS_REGION,
+        #     aws_access_key_id=self.AWS_ACCESS_KEY_ID,
+        #     aws_secret_access_key=self.AWS_SECRET_ACCESS_KEY)
 
         self.assertIsNotNone(self._ec2)
         return self._ec2
@@ -308,6 +326,7 @@ class Mixin(util.Logger):
         return not self.project_in_state(project, states)
 
     def instance_states(self):
+        """Return instance states in the EC2 account."""
         states = [i.state
                   for i in self.ec2.get_only_instances()
                   if i.state not in ('terminated', 'shutting-down')]
@@ -316,7 +335,7 @@ class Mixin(util.Logger):
         return counts
 
     def until_instances_in_state(self, **states):
-        """Wait until instances match the given states counts."""
+        """Wait until EC2 instances match the given states counts."""
         timeout = self.timeout()
         while not timeout:
             counts = self.instance_states()
@@ -325,6 +344,7 @@ class Mixin(util.Logger):
 
             time.sleep(2)
 
+    @only_real_aws
     def until_instances_only_in_states(self, wanted_states):
         """Wait until instances are in the given list of states
         (regardless of number of instances, compare to
@@ -341,6 +361,7 @@ class Mixin(util.Logger):
 
             time.sleep(2)
 
+    @only_real_aws
     def assertInstanceStates(self, **expected_counts):
         counts = self.instance_states()
         self.assertEqual(counts, expected_counts)

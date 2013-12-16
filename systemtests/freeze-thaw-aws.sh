@@ -128,6 +128,10 @@ export DJANGO_SETTINGS_MODULE=freeze_thaw_aws_test.settings
 
 env_setup
 
+export AWS_ACCESS_KEY_ID=$access_key
+export AWS_SECRET_ACCESS_KEY=$secret_key
+export AWS_DEFAULT_REGION=$region
+
 if [ -n "$USE_EXISTING_FREEZR" ]; then
     echo "Using existing freezr environment"
 else
@@ -144,10 +148,6 @@ else
 	--pidfile $cur_dir/celeryd.pid >>$(logname celeryd) 2>&1 &
     sleep 5; check_add "manage.py celeryd" "$(cat celeryd.pid)"
     echo "done"
-
-    export AWS_ACCESS_KEY_ID=$access_key
-    export AWS_SECRET_ACCESS_KEY=$secret_key
-    export AWS_DEFAULT_REGION=$region
 
     echo -n "Starting application server ... "
     $manage runserver 9000 >>$(logname freezr) 2>&1 &

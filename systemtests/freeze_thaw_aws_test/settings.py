@@ -39,7 +39,12 @@ LOGGING = {
         'freezr': {
             'handlers': ['console'],
             'level': 'DEBUG',
-            'propagate': False,
+            'propagate': True,
+            },
+        'freeze_thaw_aws_test': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
             }
         }
     }

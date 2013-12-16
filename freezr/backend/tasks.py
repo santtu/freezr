@@ -44,13 +44,17 @@ def retry(func, *args, **kwargs):
                                              # schedule
 
 
+def get_aws(account):
+    return get_backend(account.access_key, account.secret_key)
+
+
 def dispatch(task, **kwargs):
     """Dispatches the given task with default error and result
     handlers. Returns the async object."""
     final_task = chain(task, log_result.s(task=repr(task)))
     async = final_task.apply_async(link_error=log_error.s(),
                                    **kwargs)
-    log.info('[%s] Dispatched "%r"', async, task)
+    log.info('[%s] Dispatched "%r" (%r)', async, task, kwargs)
     return async
 
 # The refresh task is scheduled to run every 10 minutes, but by
@@ -130,7 +134,7 @@ def refresh_account(self, pk, regions=None,
 
     # Ah well, probably should get a database transaction or something
     # like that here.
-    account.refresh(regions=regions, aws=get_backend(account))
+    account.refresh(regions=regions, aws=get_aws(account))
 
     # See if any of the instances ended up in a "transitioning" state,
     # fire separate update tasks for them.
@@ -173,7 +177,7 @@ def freeze_project(self, pk):
     if not project.account.active or project.state != 'freezing':
         return
 
-    project.freeze(aws=get_backend(project.account))
+    project.freeze(aws=get_aws(project.account))
 
     # Schedule project refresh to watch instance states until all have
     # stabilised.
@@ -195,7 +199,7 @@ def thaw_project(self, pk):
     if not project.account.active or project.state != 'thawing':
         return
 
-    project.thaw(aws=get_backend(project.account))
+    project.thaw(aws=get_aws(project.account))
 
     if project.state == 'thawing':
         dispatch(refresh_project.si(project.id),
@@ -228,7 +232,7 @@ def refresh_instance(self, pk):
              instance, instance.state)
 
     prev_state = instance.state
-    instance.refresh(aws=get_backend(instance.account))
+    instance.refresh(aws=get_aws(instance.account))
 
     # we want to use the old instance object if it is still valid
     if get():
