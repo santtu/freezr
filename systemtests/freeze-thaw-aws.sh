@@ -11,6 +11,7 @@ LOG_PREFIX=${LOG_PREFIX-}
 LOG_SUFFIX=${LOG_SUFFIX-}
 pids=()
 pidfile=freeze-thaw-aws.pid
+rabbitmqctl=${rabbitmqctl-rabbitmqctl}
 
 cd $cur_dir
 
@@ -116,7 +117,7 @@ trap 'terminate $?' EXIT
 trap 'terminate 1' HUP INT QUIT TERM
 
 # See if there is rabbitmq-server already running, if not, spawn one.
-if ! rabbitmqctl status >>$(logname rabbitmq) 2>&1; then
+if ! $rabbitmqctl status >>$(logname rabbitmq) 2>&1; then
     echo -n "RabbitMQ server not running, starting temporary server ... "
     rabbitmq-server >>$(logname rabbitmq) 2>&1 &
     pid=$!
@@ -128,10 +129,10 @@ if ! rabbitmqctl status >>$(logname rabbitmq) 2>&1; then
     echo "done"
 fi
 
-if [ -z "$(rabbitmqctl list_vhosts | grep freezr_testing)" ]; then
+if [ -z "$($rabbitmqctl list_vhosts | grep freezr_testing)" ]; then
     echo "Creating freezr_testing vhost on RabbitMQ server ... "
-    rabbitmqctl add_vhost freezr_testing
-    rabbitmqctl set_permissions -p freezr_testing guest '.*' '.*' '.*'
+    $rabbitmqctl add_vhost freezr_testing
+    $rabbitmqctl set_permissions -p freezr_testing guest '.*' '.*' '.*'
 fi
 
 export PYTHONPATH=$top_dir:$cur_dir
