@@ -12,6 +12,8 @@ LOG_SUFFIX=${LOG_SUFFIX-}
 pids=()
 pidfile=freeze-thaw-aws.pid
 
+cd $cur_dir
+
 if [ -z "$access_key" -o -z "$secret_key" ]; then
     echo "Usage: $0 [AWS-ACCESS-KEY-ID [AWS-SECRET-ACCESS-KEY \
 [KEY-NAME [REGION]]]]
@@ -109,7 +111,12 @@ trap 'terminate 1' HUP INT QUIT TERM
 if ! rabbitmqctl status >/dev/null 2>&1; then
     echo -n "RabbitMQ server not running, starting temporary server ... "
     rabbitmq-server >>$(logname rabbitmq) 2>&1 &
-    sleep 5; check_add "rabbitmq-server" $!
+    pid=$!
+    while ! nc localhost 5672 </dev/null >>$(logname rabbitmq) 2>&1
+    do
+	sleep 1
+    done
+    sleep 5; check_add "rabbitmq-server" $pid
     echo "done"
 fi
 

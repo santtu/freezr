@@ -10,7 +10,6 @@ import copy
 from .util import AwsMockFactory, ImmediateAwsMock, with_aws
 from django.utils import timezone
 from datetime import timedelta
-import freezr.backend
 from django.conf import settings
 
 log = logging.getLogger(__file__)

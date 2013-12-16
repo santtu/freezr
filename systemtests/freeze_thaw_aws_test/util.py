@@ -52,8 +52,8 @@ class Client(util.Logger):
     def request(self, op_fn, path, data=None):
         url = self._url(path)
 
-        self.log.debug("Request to %s with %s, data: %r",
-                       url, op_fn, data)
+        self.log.debug("Request to %s with %s, data: %s",
+                       url, op_fn, self._encode(data))
 
         r = op_fn(url,
                   headers={'Accept': 'application/json',
