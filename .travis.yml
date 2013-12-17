@@ -10,4 +10,4 @@ services:
   - rabbitmq
 script:
   - python manage.py test -v2
-  - rabbitmqctl="sudo rabbitmqctl" ./systemtests/run-fake-integration-test.sh
+  - ./systemtests/run-fake-integration-test.sh

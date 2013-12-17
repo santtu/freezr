@@ -11,7 +11,7 @@ LOG_PREFIX=${LOG_PREFIX-}
 LOG_SUFFIX=${LOG_SUFFIX-}
 pids=()
 pidfile=freeze-thaw-aws.pid
-rabbitmqctl=${rabbitmqctl-rabbitmqctl}
+#rabbitmqctl=${rabbitmqctl-rabbitmqctl}
 
 cd $cur_dir
 
@@ -115,6 +115,19 @@ function write_pidfile {
 
 trap 'terminate $?' EXIT
 trap 'terminate 1' HUP INT QUIT TERM
+
+# See whether we should use sudo to run rabbitmqctl or not.
+rabbitmqctl=$(command -v rabbitmqctl)
+# %€#"%€#%"#€%€% ...
+if [[ $(uname) = Darwin ]]; then
+    stat='stat -f'
+else
+    stat='stat -c'
+fi
+
+if [[ "$($stat %u $rabbitmqctl)" -ne "$(id -u)" ]]; then
+    rabbitmqctl="sudo rabbitmqctl"
+fi
 
 # See if there is rabbitmq-server already running, if not, spawn one.
 if ! $rabbitmqctl status >>$(logname rabbitmq) 2>&1; then
