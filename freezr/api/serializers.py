@@ -215,7 +215,8 @@ class ProjectSerializer(util.Logger, ImmutableMixin,
                 refresh = True
 
         if refresh:
-            dispatch(refresh_account.si(account.id, forced=True))
+            dispatch(refresh_account.si(account.id, forced=True),
+                     countdown=10)
             account.log_entry(
                 'Regions changed',
                 details='Added: %s\nRemoved: %s' % (

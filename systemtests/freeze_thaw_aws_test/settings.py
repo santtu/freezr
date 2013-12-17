@@ -19,34 +19,45 @@ DATABASES = {
 
 #print("BROKER_URL = {0}".format(BROKER_URL))
 
+# Two version of logging configuration. One for server-under-test and
+# another to configure the actual unit tests (which will indirectly
+# load this file, thus causing django config to set the logging
+# paremeters **from here**).
 
-LOGGING = {
-    'version': 1,
-    'formatters': {
-        'simple': {
-            'format': FORMATTER_SIMPLE_FORMAT,
-            }
-        },
-    'handlers': {
-        'console': {
-            'level': 'DEBUG',
-            'class': 'logging.FileHandler',
-            'formatter': 'simple',
-            'filename': 'freezr.log',
-            }
-        },
-    'loggers': {
-        'freezr': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': True,
+if 'NOSE' not in os.environ:
+    # Server-under-test logging configuration. Log to stderr
+    # (streamhandler).
+    LOGGING = {
+        'version': 1,
+        'formatters': {
+            'simple': {
+                'format': FORMATTER_SIMPLE_FORMAT,
+                }
             },
-        'freeze_thaw_aws_test': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': True,
+        'handlers': {
+            'console': {
+                'level': 'DEBUG',
+                'formatter': 'simple',
+                'class': 'logging.StreamHandler',
+                }
+            },
+        'loggers': {
+            'freezr': {
+                'handlers': ['console'],
+                'level': 'DEBUG',
+                'propagate': True,
+                },
+            'freeze_thaw_aws_test': {
+                'handlers': ['console'],
+                'level': 'DEBUG',
+                'propagate': True,
+                }
             }
         }
-    }
+else:
+    # Running under unit test, let nosetests capture the output.
+    LOGGING = {
+        'version': 1
+        }
 
 import freezr.backend.celery  # noqa

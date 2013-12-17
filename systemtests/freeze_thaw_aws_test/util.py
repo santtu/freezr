@@ -2,10 +2,9 @@ import os
 import requests
 import logging
 import json
-import freezr.common.util as util
 import time
 import copy
-from freezr.backend import get_backend
+import boto.ec2
 from functools import wraps
 
 FILTER_KEYS = ('pick_filter', 'save_filter', 'terminate_filter')
@@ -23,7 +22,7 @@ def only_real_aws(func):
     return inner
 
 
-class Client(util.Logger):
+class Client(object):
     """Quick and dirty almost-like-real-django/rest-test-Client
     class."""
     def __init__(self):
@@ -34,6 +33,7 @@ class Client(util.Logger):
 
         self.base_url = "http://{0}:{1}/api".format(host, port)
         self.s = requests.Session()
+        self.log = logging.getLogger('freezr.systemtests.util.Client')
 
     def _url(self, path):
         if path[0] != '/':
@@ -101,7 +101,7 @@ class Client(util.Logger):
         return self.request(self.s.delete, path, data)
 
 
-class Mixin(util.Logger):
+class Mixin(object):
     DOMAIN_DATA = {'domain': 'freezr.test.local',
                    'name': 'Freezr integration test domain'}
 
@@ -133,6 +133,7 @@ class Mixin(util.Logger):
         self.real_aws = 'AWS_FAKE' not in os.environ
         self._ec2 = None
         self._cache = {}
+        self.log = logging.getLogger('freezr.systemtests.util.Mixin')
 
     def setUp(self):
         self.client = Client()
@@ -259,14 +260,10 @@ class Mixin(util.Logger):
         assert self.real_aws, \
             "This should not have been reached with fake AWS backend"
 
-        self._ec2 = (get_backend(self.AWS_ACCESS_KEY_ID,
-                                 self.AWS_SECRET_ACCESS_KEY)
-                     .connect_ec2(self.AWS_REGION))
-
-        # self._ec2 = boto.ec2.connect_to_region(
-        #     self.AWS_REGION,
-        #     aws_access_key_id=self.AWS_ACCESS_KEY_ID,
-        #     aws_secret_access_key=self.AWS_SECRET_ACCESS_KEY)
+        self._ec2 = boto.ec2.connect_to_region(
+            self.AWS_REGION,
+            aws_access_key_id=self.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=self.AWS_SECRET_ACCESS_KEY)
 
         self.assertIsNotNone(self._ec2)
         return self._ec2

@@ -17,6 +17,12 @@ CELERY_IMPORTS = ('freezr.backend.celery', 'freezr.backend.tasks')
 CELERY_TASK_RESULT_EXPIRES = 600  # 10 minutes
 CELERYBEAT_SCHEDULER = "djcelery.schedulers.DatabaseScheduler"
 CELERY_TASK_PUBLISH_RETRY = True
+CELERY_TASK_PUBLISH_RETRY_POLICY = {
+    'max_retries': 15,
+    'interval_start': 0,
+    'interval_step': 0.2,
+    'interval_max': 2.5,  # with .2 step this equals to 5 seconds
+}
 CELERY_TRACK_STARTED = True
 
 CELERYBEAT_SCHEDULE = {

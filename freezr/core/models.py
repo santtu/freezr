@@ -235,8 +235,11 @@ class Account(BaseModel):
         # Go through projects that are 'init' state and see if they
         # have any picked or saved instances --- then we move them to
         # "running" state.
-        for project in self.projects.filter(state_actual='init').all():
-            if project.picked_instances or project.saved_instances:
+        for project in self.projects.filter(state_actual='init'):
+            self.log.debug("Checking in-init-state project %r, "
+                           "picked instances: %r",
+                           project, project.picked_instances)
+            if project.picked_instances:
                 project.log_entry(
                     'Moving {0} from initializing to running state'
                     .format(project))

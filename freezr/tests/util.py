@@ -20,8 +20,8 @@ class AwsMock(object):
         assert len(self.calls) > 0, "no calls to AWS mock"
 
     def assertNotCalled(self):
-        assert (len(self.calls) == 0,
-                "%d unexpected calls to AWS mock" % (len(self.calls),))
+        assert len(self.calls) == 0, \
+            "%d unexpected calls to AWS mock" % (len(self.calls),)
 
     def refresh_region(self, account, region):
         log.debug('AwsMock.refresh_region: account=%r region=%r',

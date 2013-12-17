@@ -39,17 +39,17 @@ function pidof {
     if [[ -z "$1" ]]; then
 	echo -n ''
     elif [[ ! "$1" =~ ^[0-9]+$ ]]; then
-	pgrep -f "$1" | tr '\n' ' '
+	pgrep -f "$1" | tr '\n' ' ' | sed 's/ $//'
     else
-	echo -n "$1 "
+	echo -n "$1"
     fi
     return 0
 }
 
 function allpids {
-    for pid in "${pids[@]}"; do
-	pidof "$pid"
-    done
+    (for pid in "${pids[@]}"; do
+	pidof "$pid"; echo -n " "
+    done) | sed 's/ $//'
     return 0
 }
 
@@ -58,8 +58,6 @@ function terminate {
     code="$1"
     [[ ${#pids[@]} == 0 ]] && exit $code
     echo -n "Terminate, killing pids ... "
-    # for pid in "${pids[@]}"; do
-    # 	pid=$(pidof "$pid")
     for pid in $(allpids); do
 	echo -n "$pid "
 	(kill -- -$pid; kill $pid; sleep 1;
@@ -168,7 +166,7 @@ else
     echo "done"
 
     echo -n "Starting application server ... "
-    $manage runserver 9000 >>$(logname freezr) 2>&1 &
+    ($manage runserver 9000) >>$(logname freezr) 2>&1 &
 
     # can't use $! here, see https://code.djangoproject.com/ticket/19137
     # the extra sleep is *required*
@@ -180,7 +178,7 @@ echo "Starting test suite, child pids are $(allpids)"
 
 # finally we can run nosetests -- use -x due to interdependence of
 # tests (if one fails, others might block etc.)
-if ! (env_setup && nosetests -x -v -w $test_dir); then
+if ! NOSE=1 nosetests -x -v -w $test_dir; then
     echo "FAILURE: Tests failed"
     retval=1
 else

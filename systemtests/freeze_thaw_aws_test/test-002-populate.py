@@ -10,10 +10,12 @@ class PopulateEnvironment(Mixin, unittest.TestCase):
                              self.DOMAIN_DATA)
 
         self.assertCode(r, 201)
+        self.assertIsNotNone(self.domain)
 
         r = self.client.post("/domain/",
                              self.DUMMY_DOMAIN_DATA)
         self.assertCode(r, 201)
+        self.assertIsNotNone(self.dummy_domain)
 
     def test02PopulateAccount(self):
         """002-02 Populate test account"""
@@ -24,6 +26,7 @@ class PopulateEnvironment(Mixin, unittest.TestCase):
                                    secret_key=self.AWS_SECRET_ACCESS_KEY))
 
         self.assertCode(r, 201)
+        self.assertIsNotNone(self.account)
 
         r = self.client.post('/account/',
                              merge(self.DUMMY_ACCOUNT_DATA,
@@ -33,6 +36,7 @@ class PopulateEnvironment(Mixin, unittest.TestCase):
                                    active=False))
 
         self.assertCode(r, 201)
+        self.assertIsNotNone(self.dummy_account)
 
     def test03PopulateProjects(self):
         """002-03 Populate test projects"""
@@ -42,6 +46,7 @@ class PopulateEnvironment(Mixin, unittest.TestCase):
                                    account=self.account.id,
                                    regions=[self.AWS_REGION]))
         self.assertCode(r, 201)
+        self.assertIsNotNone(self.project_public)
 
         r = self.client.post('/project/',
                              merge(self.VPC_PROJECT_DATA,
@@ -50,11 +55,11 @@ class PopulateEnvironment(Mixin, unittest.TestCase):
                                    regions=[self.AWS_REGION]))
 
         self.assertCode(r, 201)
+        self.assertIsNotNone(self.project_vpc)
 
     def test04WaitProjectsRunning(self):
         """002-04 Wait until projects are running"""
         projects = [self.project_public, self.project_vpc]
-        running = False
         timeout = self.timeout()
 
         self.log.debug("timeout=%r not=%r", timeout, not timeout)
