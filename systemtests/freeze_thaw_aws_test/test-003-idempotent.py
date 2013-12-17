@@ -154,6 +154,7 @@ class IdempotentTests(Mixin, unittest.TestCase):
             time.sleep(2)
 
             r = self.client.get(self.account)
+            self.assertCode(r, 200)
             if r.data['updated'] > updated:
                 break
 
