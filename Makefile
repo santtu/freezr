@@ -62,7 +62,7 @@ setup:
 	pip install -r requirements.txt virtualenvwrapper
 
 virtualenv-%:
-	@$(SHELL) -c 'if [ -z "$$VIRTUAL_ENV" ]; then if [ ! -d virtualenv/installed.timestamp ]; then $(MAKE) virtualenv; fi; source virtualenv/bin/activate; fi && $(MAKE) $(subst virtualenv-,,$@) MAKEFLAGS= MAKELEVEL='
+	@$(SHELL) -c 'if [ -z "$$VIRTUAL_ENV" ]; then if [ ! -d virtualenv/installed.timestamp ]; then $(MAKE) virtualenv; fi; . virtualenv/bin/activate; fi && $(MAKE) $(subst virtualenv-,,$@) MAKEFLAGS= MAKELEVEL='
 
 ########################################################################
 
