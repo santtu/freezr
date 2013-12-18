@@ -4,12 +4,12 @@ python:
   - "2.7"
 env:
   global:
-    - PATH=$PATH:$PWD/node_modules/.bin
+    - PATH=$PATH:$TRAVIS_BUILD_DIR/node_modules/.bin
 install:
   - npm install less coffee-script
   - pip install .
   - env
-  - ls -l
+  - which -a lessc coffee
 services:
   - rabbitmq
 script:
