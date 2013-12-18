@@ -8,4 +8,4 @@ before_script:
 services:
   - rabbitmq
 script:
-  - make test
+  - make actual-test
