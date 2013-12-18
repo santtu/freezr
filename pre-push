@@ -1,8 +1,0 @@
-#!/bin/bash -e
-if [[ -r virtualenv/bin/activate && -z "$VIRTUAL_ENV" ]]; then
-    source virtualenv/bin/activate
-fi
-flake8 --ignore=E221,E701,E202,E123 freezr systemtests
-./manage.py test -v2
-./systemtests/run-fake-integration-test.sh
-exit 0

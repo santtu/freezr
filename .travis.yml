@@ -9,5 +9,4 @@ before_script:
 services:
   - rabbitmq
 script:
-  - python manage.py test -v2
-  - ./systemtests/run-fake-integration-test.sh
+  - make test

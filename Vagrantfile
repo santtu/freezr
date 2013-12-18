@@ -119,4 +119,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.synced_folder ".", "/home/vagrant/freezr"
 
   config.vm.provision :shell, :path => "etc/install/install.sh", :args => "freezr"
+
+  config.vm.network :forwarded_port, id: "server", guest: 8000, host: 8080, host_ip: "127.0.0.1"
 end
