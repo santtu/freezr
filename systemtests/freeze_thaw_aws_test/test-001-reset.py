@@ -15,3 +15,9 @@ class ResetEnvironment(util.Mixin, unittest.TestCase):
             self.log.debug('Deleting domain %s', d['id'])
             r2 = self.client.delete('/domain/%s/' % (d['id'],))
             self.assertCode(r2, 204)
+
+    def test02WebWorking(self):
+        """001-02 Test that the actual non-api entry point works"""
+        r = self.client.get(self.client.host_url + "/",
+                            accept="text/html")
+        self.assertCode(r, 200)

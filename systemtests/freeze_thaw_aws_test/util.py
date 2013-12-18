@@ -31,13 +31,14 @@ class Client(object):
         host = os.environ.get('FREEZR_SERVER_HOST', 'localhost')
         port = int(os.environ.get('FREEZR_SERVER_PORT', '9000'))
 
-        self.base_url = "http://{0}:{1}/api".format(host, port)
+        self.host_url = "http://{0}:{1}".format(host, port)
+        self.base_url = "{0}/api".format(self.host_url)
         self.s = requests.Session()
         self.log = logging.getLogger('freezr.systemtests.util.Client')
 
     def _url(self, path):
         if path[0] != '/':
-            assert path.startswith(self.base_url), \
+            assert path.startswith(self.host_url), \
                 "{0} is not a valid path".format(path)
             return path
 
@@ -49,15 +50,16 @@ class Client(object):
 
         return json.dumps(data)
 
-    def request(self, op_fn, path, data=None):
+    def request(self, op_fn, path, data=None,
+                accept='application/json', content_type='application/json'):
         url = self._url(path)
 
         self.log.debug("Request to %s with %s, data: %s",
                        url, op_fn, self._encode(data))
 
         r = op_fn(url,
-                  headers={'Accept': 'application/json',
-                           'Content-Type': 'application/json' },
+                  headers={'Accept': accept,
+                           'Content-Type': content_type },
                   data=self._encode(data))
 
         self.log.debug("Response status: %s", r.status_code)
@@ -85,20 +87,20 @@ class Client(object):
 
         return r
 
-    def post(self, path, data={}):
-        return self.request(self.s.post, path, data)
+    def post(self, path, data={}, **kwargs):
+        return self.request(self.s.post, path, data, **kwargs)
 
-    def get(self, path):
-        return self.request(self.s.get, path)
+    def get(self, path, **kwargs):
+        return self.request(self.s.get, path, **kwargs)
 
-    def put(self, path, data={}):
-        return self.request(self.s.put, path, data)
+    def put(self, path, data={}, **kwargs):
+        return self.request(self.s.put, path, data, **kwargs)
 
-    def patch(self, path, data={}):
-        return self.request(self.s.patch, path, data)
+    def patch(self, path, data={}, **kwargs):
+        return self.request(self.s.patch, path, data, **kwargs)
 
-    def delete(self, path, data={}):
-        return self.request(self.s.delete, path, data)
+    def delete(self, path, data={}, **kwargs):
+        return self.request(self.s.delete, path, data, **kwargs)
 
 
 class Mixin(object):
