@@ -1,9 +1,15 @@
+# -*- yaml -*-
 language: python
 python:
   - "2.7"
+env:
+  global:
+    - PATH=$PATH:$PWD/node_modules/.bin
 install:
   - npm install less coffee-script
   - pip install .
+  - env
+  - ls -l
 services:
   - rabbitmq
 script:
