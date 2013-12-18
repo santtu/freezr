@@ -306,7 +306,7 @@ class Filter(object):
 
 
 def format(exp):
-    assert(isinstance(exp, Element),
-           "{0!r} is not of type Element".format(exp))
+    assert isinstance(exp, Element), \
+        "{0!r} is not of type Element".format(exp)
 
     return unicode(exp)

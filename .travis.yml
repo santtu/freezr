@@ -8,8 +8,6 @@ env:
 install:
   - npm install less coffee-script
   - pip install .
-  - env
-  - which -a lessc coffee
 services:
   - rabbitmq
 script:

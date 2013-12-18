@@ -92,7 +92,7 @@ su - vagrant -c "/usr/local/bin/virtualenv $VIRTUALENV_DIR && \
 echo "workon $VIRTUALENV_NAME" >> /home/vagrant/.bashrc
 echo "workon $VIRTUALENV_NAME" >> /home/vagrant/.zshrc
 
-chsh /bin/zsh
+sudo chsh -s /bin/zsh vagrant
 
 # Set execute permissions on manage.py, as they get lost if we build
 # from a zip file

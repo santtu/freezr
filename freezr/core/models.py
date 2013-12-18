@@ -558,17 +558,16 @@ class Project(BaseModel):
         # Sanity check. Should never happen, but .. this is the time
         # to be paranoid, terminating instances that shouldn't be
         # terminated is a bad thing.
-        assert(len(picked_instances -
-                   (save_instances |
-                    terminate_instances |
-                    skip_instances)) == 0,
+        assert((len(picked_instances -
+                    (save_instances | terminate_instances
+                     | skip_instances)) == 0),
                "some instances are not categorized at all")
 
-        assert(len(save_instances & terminate_instances) == 0,
-               "some instances are marked for both termination and saving")
+        assert len(save_instances & terminate_instances) == 0, \
+            "some instances are marked for both termination and saving"
 
-        assert(len(skip_instances & terminate_instances) == 0,
-               "some instances are marked for both termination and skipping")
+        assert len(skip_instances & terminate_instances) == 0, \
+            "some instances are marked for both termination and skipping"
 
         self.save_state('freezing')
 
