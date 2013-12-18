@@ -12,7 +12,6 @@ django-filter
 django-nose
 djangorestframework
 httplib2
-ipython
 kombu
 librabbitmq
 nose
@@ -24,5 +23,7 @@ pytz
 redis
 requests
 wsgiref
--e git+https://github.com/santtu/django-static-precompiler.git#egg=static_precompiler
+-e git+https://github.com/santtu/django-static-precompiler.git#egg=django-static-precompiler
+# setup-only: django-static-precompiler==dev
+# setup-only: http://github.com/santtu/django-static-precompiler/tarball/master#egg=django-static-precompiler-dev
 flake8

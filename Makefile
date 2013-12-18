@@ -31,7 +31,7 @@ all-test: test systemtest
 ## applied from virtualenv wrapper.
 
 actual-test:
-	flake8 --ignore=E221,E701,E202,E123 freezr systemtests
+	flake8 --ignore=E221,E701,E202,E123 freezr systemtests setup.py
 	./manage.py test -v2
 	./systemtests/run-fake-integration-test.sh
 
