@@ -43,7 +43,7 @@ actual-run:
 	./run
 
 actual-run-fake:
-	./manage.py flush --noinput
+	-./manage.py flush --noinput
 	./manage.py syncdb -v1 --noinput
 	./manage.py loaddata freezr/app/fixtures/testing_cfn.yaml
 	PYTHONPATH=.:systemtests FREEZR_CLOUD_BACKEND=freeze_thaw_aws_test.aws.Mock ./run
@@ -56,16 +56,15 @@ actual-run-fake:
 virtualenv: virtualenv/installed.timestamp
 virtualenv/installed.timestamp:
 	virtualenv virtualenv
-	$(MAKE) virtualenv-setup
-	touch virtualenv/installed.timestamp
+	touch virtualenv/installed.timestamp && $(MAKE) virtualenv-setup || rm -f virtualenv/installed.timestamp
 
 setup:
 	pip install -r requirements.txt virtualenvwrapper
 
 virtualenv-%:
-	@$(SHELL) -c 'if [ -z "$$VIRTUAL_ENV" ]; then if [ ! -d virtualenv ]; then $(MAKE) virtualenv; fi; source virtualenv/bin/activate; fi && $(MAKE) $(subst virtualenv-,,$@) MAKEFLAGS= MAKELEVEL='
+	@$(SHELL) -c 'if [ -z "$$VIRTUAL_ENV" ]; then if [ ! -d virtualenv/installed.timestamp ]; then $(MAKE) virtualenv; fi; source virtualenv/bin/activate; fi && $(MAKE) $(subst virtualenv-,,$@) MAKEFLAGS= MAKELEVEL='
 
 ########################################################################
 
 .PHONY: actual-test actual-systemtest setup all-test \
-	systemtest test run all run-fake setup-db
+	systemtest test run all run-fake virtualenv
