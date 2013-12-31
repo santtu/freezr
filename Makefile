@@ -19,7 +19,8 @@ all:
 ## Redirect regular common idioms to ensure they run in virtualenv.
 ##
 
-test: virtualenv-actual-test
+test: virtualenv-actual-test fake-systemtest
+fake-systemtest: virtualenv-actual-fake-systemtest
 systemtest: virtualenv-actual-systemtest
 run: virtualenv-actual-run
 run-fake: virtualenv-actual-run-fake
@@ -33,6 +34,8 @@ all-test: test systemtest
 actual-test:
 	flake8 --ignore=E221,E701,E202,E123 freezr systemtests setup.py
 	./manage.py test -v2
+
+actual-fake-systemtest:
 	./systemtests/run-fake-integration-test.sh
 
 actual-systemtest:
@@ -56,7 +59,7 @@ actual-run-fake:
 virtualenv: virtualenv/installed.timestamp
 virtualenv/installed.timestamp:
 	virtualenv virtualenv
-	touch virtualenv/installed.timestamp && $(MAKE) virtualenv-setup || rm -f virtualenv/installed.timestamp
+	touch virtualenv/installed.timestamp && $(MAKE) virtualenv-setup || (rm -f virtualenv/installed.timestamp; exit 1)
 
 setup:
 	pip install -r requirements.txt virtualenvwrapper
