@@ -1,9 +1,6 @@
 from __future__ import absolute_import
-try:
-    from .base import *  # noqa
-except Exception as ex:
-    print("Exception during import from base: {0}".format(ex))
-
+from .base import *  # noqa
+import dj_database_url
 import os
 import sys
 
@@ -49,19 +46,25 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-        # this is for testing db only, some queries to aws can last
-        # multiple seconds, sqlite locks the whole db for updates, and
-        # our Account.refresh uses a big hunking transaction lock
-        # .. which with a real db would not be such a big problem, but
-        # with sqlite will cause the default 5 second timeout to
-        # .. time out
-        'OPTIONS': {'timeout': 30},
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+#         # this is for testing db only, some queries to aws can last
+#         # multiple seconds, sqlite locks the whole db for updates, and
+#         # our Account.refresh uses a big hunking transaction lock
+#         # .. which with a real db would not be such a big problem, but
+#         # with sqlite will cause the default 5 second timeout to
+#         # .. time out
+#         'OPTIONS': {'timeout': 30},
+#     }
+# }
+
+# For development purposes, provide a default database.
+DEFAULT_DATABASE_URL = ('sqlite:////%s?OPTIONS={"timeout":30}'
+                        % (os.path.join(BASE_DIR, 'db.sqlite3'),))
+
+DATABASES = {'default': dj_database_url.config(default=DEFAULT_DATABASE_URL)}
 
 BROKER_URL = 'amqp://guest@localhost//'
 CELERY_RESULT_BACKEND = 'amqp'

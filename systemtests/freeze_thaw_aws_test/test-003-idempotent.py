@@ -227,9 +227,21 @@ class IdempotentTests(Mixin, unittest.TestCase):
 
         r = self.client.get(self.account)
         self.assertCode(r, 200)
-        orig_instances = r.data['instances']
-        self.assertEqual(len(orig_instances), 6)
+        self.assertEqual(len(r.data['instances']), 6)
+        # Fetch instance data, we can't compare instance ids directly
+        # as they may change.
 
+        def get_instances(ids):
+            data = {}
+
+            for id in ids:
+                r = self.client.get("/instance/%d/" % (id,))
+                self.assertCode(r, 200)
+                data[r.data['instance_id']] = r.data
+
+            return data
+
+        orig_instances = get_instances(r.data['instances'])
         r = self.client.get("/project/")
         self.assertCode(r, 200)
 
@@ -273,4 +285,5 @@ class IdempotentTests(Mixin, unittest.TestCase):
 
                 time.sleep(2)
 
-            self.assertEqual(set(r.data['instances']), set(orig_instances))
+            new_instances = get_instances(r.data['instances'])
+            self.assertInstanceSetsEqual(orig_instances, new_instances)

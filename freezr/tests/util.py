@@ -1,7 +1,26 @@
 import logging
+import copy
 from django.conf import settings
 
 log = logging.getLogger('freezr.tests.util')
+
+
+class Mixin(object):
+    def assertSimilar(self, a, b, msg=None,
+                      sets=('regions', 'projects',
+                            'accounts', 'instances')):
+        """Compare two dicts understanding that some fields are
+        actually sets as lists and should be compared as sets and not
+        lists."""
+        a = copy.copy(a)
+        b = copy.copy(b)
+
+        for k in sets:
+            self.assertEqual(k in a, k in b)
+            if k in a:
+                self.assertSetEqual(set(a.pop(k)), set(b.pop(k)))
+
+        self.assertEqual(a, b, msg)
 
 
 class AwsMock(object):

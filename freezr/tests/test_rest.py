@@ -6,8 +6,7 @@ from rest_framework import test
 from django.core.urlresolvers import reverse
 from itertools import chain
 from datetime import datetime
-import copy
-from .util import AwsMockFactory, ImmediateAwsMock, with_aws
+from .util import AwsMockFactory, ImmediateAwsMock, with_aws, Mixin
 from django.utils import timezone
 from datetime import timedelta
 from django.conf import settings
@@ -20,7 +19,7 @@ def flatu(items):
     return list(set(chain.from_iterable(items)))
 
 
-class TestREST(test.APITestCase):
+class TestREST(Mixin, test.APITestCase):
     fixtures = ('rest_tests',)
 
     def setUp(self):
@@ -29,21 +28,6 @@ class TestREST(test.APITestCase):
 
     def tearDown(self):
         settings.FREEZR_CLOUD_BACKEND = self.saved_cloud_backend
-
-    def assertSimilar(self, a, b, msg=None,
-                      sets=('regions', 'projects', 'accounts')):
-        """Compare two dicts understanding that some fields are
-        actually sets as lists and should be compared as sets and not
-        lists."""
-        a = copy.copy(a)
-        b = copy.copy(b)
-
-        for k in sets:
-            self.assertEqual(k in a, k in b)
-            if k in a:
-                self.assertSetEqual(set(a.pop(k)), set(b.pop(k)))
-
-        self.assertEqual(a, b, msg)
 
     def testListDomains(self):
         response = self.client.get(reverse('domain-list'))

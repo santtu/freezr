@@ -27,3 +27,5 @@ wsgiref
 # setup-only: django-static-precompiler==0.3-santtu
 # setup-only: http://github.com/santtu/django-static-precompiler/tarball/master#egg=django-static-precompiler-0.3-santtu
 flake8
+dj-database-url
+psycopg2

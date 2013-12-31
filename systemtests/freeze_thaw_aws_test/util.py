@@ -65,7 +65,7 @@ class Client(object):
         self.log.debug("Response status: %s", r.status_code)
         #self.log.debug("Response headers: %r", r.headers)
 
-        if ((r.headers['content-type'] == 'application/json' and
+        if ((r.headers.get('content-type') == 'application/json' and
              r.status_code not in (204,))):
             r.data = json.loads(r.text)
 
@@ -136,12 +136,25 @@ class Mixin(object):
         self._ec2 = None
         self._cache = {}
         self.log = logging.getLogger('freezr.systemtests.util.Mixin')
+        self.maxDiff = None
 
     def setUp(self):
         self.client = Client()
 
     def assertCode(self, r, code):
         self.assertEqual(r.status_code, code)
+
+    def assertInstanceSetsEqual(self, a, b):
+        self.assertEqual(a.keys(), b.keys())
+        for id in a.keys():
+            i1 = copy.copy(a[id])
+            i2 = copy.copy(b[id])
+
+            # Remove the database ids as they may change.
+            del i1['id']
+            del i2['id']
+
+            self.assertEqual(i1, i2)
 
     def filter_saver(self, project):
         class inner(object):

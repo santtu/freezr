@@ -89,8 +89,11 @@ su - vagrant -c "/usr/local/bin/virtualenv $VIRTUALENV_DIR && \
     PIP_DOWNLOAD_CACHE=/home/vagrant/.pip_download_cache $VIRTUALENV_DIR/bin/pip install virtualenvwrapper \
 "
 
-echo "workon $VIRTUALENV_NAME" >> /home/vagrant/.bashrc
-echo "workon $VIRTUALENV_NAME" >> /home/vagrant/.zshrc
+sh_add="export DATABASE_URL=postgres://postgres@localhost/$DB_NAME
+workon $VIRTUALENV_NAME"
+
+echo "$sh_add" >>/home/vagrant/.bashrc
+echo "$sh_add" >>/home/vagrant/.zshrc
 
 sudo chsh -s /bin/zsh vagrant
 
