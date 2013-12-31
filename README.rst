@@ -2,7 +2,8 @@
  freezr
 ========
 
-[![Build Status](https://travis-ci.org/santtu/freezr.png?branch=master)](https://travis-ci.org/santtu/freezr)
+.. image:: https://travis-ci.org/santtu/freezr.png?branch=master
+   :target: https://travis-ci.org/santtu/freezr
 
 What is **freezr**? Here's in a nutshell what freezr allows you to do:
 
